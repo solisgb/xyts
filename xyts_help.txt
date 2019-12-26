@@ -1,0 +1,28 @@
+INTRODUCCIÓN==================================
+
+Programa para grabar ficheros de imágenes en formato png (figura) de series temporales de estaciones (puntos). Los datos están almacenados en una base de datos
+
+Cada figura puede tener uno o dos gráficos que comparten el eje de las Y (fechas). El gráfico principal se pueden representar las series temporales de otros puntos relacionados con el punto principal; las series del gráfico principal deben representar la misma variable. La figura puede tener un gráfico inferior de otro punto relacionado con principal; en este gráfico inferior se puede presentar otra variable diferente a la del gráfico superior.
+
+Los datos de los gráficos y la configuración del título de la figura, el nombre/s del/os eje/s Y se definen en el fichero xyts.xml. La estructura del fichero xyts.xml puede ser consultada en xyts.docx. A cada conjunto de datos seleccionados de la base de datos y el tipo de gráfico común a todos ellos se le denomina proyecto. 
+
+INTERFAZ DE USUARIO===========================
+
+Los datos de los proyectos definidos en xyts.xml no pueden ser manejados a partir de la interfaz de usuario; sin embargo, esta interfaz permite realizar algunas selecciones básicas para los proyectos definidos en xyts.xml. Estas operaciones se describen a continuación:
+
+Botones de acción*****************************
+
+Seleccionar. Permite seleccionar uno de los proyectos que aparecen definidos en la ventana superior.
+Ver selección. Ver las características básicas del proyecto seleccionado.
+Quitar selección. Deselecciona un proyecto previamente seleccionado.
+Ejecutar. Se inicia el proceso de creación de ficheros de gráficos del proyecto seleccionado.
+Ver log. Muestra las incidencias ocurridas durante la generación de los gráficos.
+Ayuda. Permite ver este contenido.
+Finalizar. Finaliza el programa
+
+Opciones de ejecución*************************
+
+Rango de fechas de los gráficos. Indica el rango de fechas que se desea representar.
+Solo serie principal. El punto principal del gráfico puede tener puntos asociados con datos de la misma variable; si la casilla está activda solo se representarán los datos del gráfico principal
+Gráfico inferior inactivo. El punto principal del gráfico puede tener puntos asociados datos de otros puntos con otra variable; si esta opción está activada solo se presenta el gráfico superior.
+Grabar datos. Si la casilla está habilitada se graba un fichero por figura con los datos representados.

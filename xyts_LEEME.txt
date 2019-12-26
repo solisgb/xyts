@@ -1,0 +1,56 @@
+xyts (xy time series)
+
+Programa para grabar muchos gráficos xy de series temporales con los datos almacenados en una BDD ms access
+Permite dibujar la evolución temporal de una variable de un punto y de la misma variable en otros puntos relacionados con el primero; también se puede dibujar la misma u otra variable en un gráfico situado debajo de la evolución anterior. 
+
+HISTORIA
+Es la evolución del programa dislin27. Este programa utilizaba: el módulo pywin32 para acceder a la bdd ms access; la librería dislin para realizar los gráficos
+La versión actual ya no utiliza estas librerías: pyodbc en vez de pywin32; matplotlib en vez de dislin
+
+INSTALACIÓN
+
+1. Descomprimir el fichero zip en el directorio seleccionado
+
+EJECUCIÓM
+
+Requisitos previos
+python 3.7
+Dependencias: numpy, matplotlib y pyodbc
+
+Se ha desarrollado con Anaconda, para ejecutarlo
+
+Los gráficos están agrupados en proyectos en el fichero xyts.xml; si quieres hacer uno nuevo fíjate en los que ya hay creados
+
+1 Abrir Anaconda, spyder y ejecutar xyts_main.py
+
+2. Abrir una ventana de conda; cd al directorio de instalación; python xyts_main.py
+
+HISTORIAL DE VERSIONES
+
+7/12/2019
+1. Se pasa de utilizar pywin32 a usar pyodbc
+2. Se cambia el nombre del programa de dislin27 a xyts
+
+____________________________________________________
+
+5/01/2016
+1. Se migra el programa a python 3.4
+2. Se cambia la librería de gráficos de dislin a matplotlib
+3. Se desarrolla la versión de grabar localizaciones. Esta opción requiere crear al menos un nuevo tag sql con type = 'upper_locations' y opcionalmente
+   otro tag sql con type = 'lower_locations'
+
+____________________________________________________
+
+7/01/2015
+
+1. se añaden 2 botones de control de los plot
+2. se añade el control del rango de fechas que se representa en los gráficos
+3. se añaden tres controles de los gráficos en dislin27.xml
+	3.1 Tamaño del fuente en títulos, ejes y leyenda
+	3.2 Espacio entre el título y el gráfico
+	3.3 Interlineado de texto
+	Los tres items están relacionados y según lo que se escriba pueden resultar errores al general los gráficos
+____________________________________________________
+
+11/10/2014
+se corrigen varios bugs
