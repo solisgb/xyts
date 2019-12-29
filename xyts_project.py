@@ -1,9 +1,13 @@
 # -*- coding: latin-1 -*
-from xml.etree.ElementTree import parse, Element
+from datetime import date
+import numpy as np
+from tkinter import messagebox
+import xml.etree.ElementTree as ET
 import littleLogging as logging
 
 
 dbtypes = ('ms_access', 'sqlite')
+SUMMARY_FILE = '_xyts_resumen.txt'
 
 
 class Project(object):
@@ -12,7 +16,7 @@ class Project(object):
     ROOT_ELEMENT_NAME = 'xyts'
     PROJECT_ELEMENT_NAME = 'project'
 
-    def __init__(self, element: Element, check: bool=True):
+    def __init__(self, element: ET.Element, check: bool=True):
         """
         Un proyecto está formado por un elemento xml de estructura determinada
             en base a la cual se pueden grabar los gráficos de una serie de
@@ -32,7 +36,7 @@ class Project(object):
         if not xml_file:
             xml_file = Project.XML_FILE_INI
 
-        tree = parse(xml_file)
+        tree = ET.parse(xml_file)
         root = tree.getroot()
 
         if root.tag != Project.ROOT_ELEMENT_NAME:
@@ -44,18 +48,23 @@ class Project(object):
             raise ValueError(f'El fichero {xml_file} no tiene elementos ' +\
                              f'{Project.PROJECT_ELEMENT_NAME}')
         projects = []
+        ner = 0
         for i, element in enumerate(elements):
             try:
                 prj = Project(element)
                 projects.append(prj)
             except Exception:
+                ner += 1
                 logging.append(f'El project {i:d} está mal formado',
                                toScreen=False)
+        if ner > 0:
+            messagebox.showinfo(f'No se han cargado {ner:d} proyectos' +\
+                                'porque están mal formados')
         return projects
 
 
     @staticmethod
-    def check(prj_node: Element):
+    def check(prj_node: ET.Element):
         """
         Comprueba que el elemento prj_node tiene de nombre project y tiene los
             elementos requeridos
@@ -66,7 +75,7 @@ class Project(object):
                 la distancia entre un elemento en master/select y otro con
                 el que está relacionado mediante upper_relation
         """
-        def element_get(element: Element, path2: str, required: bool=True,
+        def element_get(element: ET.Element, path2: str, required: bool=True,
                         unique: bool=True) -> list:
             """
             comprueba la existencia de un elemento que puede ser requerido o
@@ -143,7 +152,7 @@ class Project(object):
             _ = element_get(prj_node, 'lower_serie/select')
 
 
-    def element_get(self, path2: str, attrib: str = None) -> Element:
+    def element_get(self, path2: str, attrib: str = None) -> ET.Element:
         """
         devuelve el subelemento de self.p en path2 o uno de sus
             atributos
@@ -154,7 +163,7 @@ class Project(object):
             return self.p.find(path2).get(attrib)
 
 
-    def elements_get(self, path2: str) -> Element:
+    def elements_get(self, path2: str) -> ET.Element:
         """
         devuelve los subelementos de self.p en path2
         """
@@ -162,14 +171,14 @@ class Project(object):
 
 
     def element_with_atribb_get(self, path2: str, attrib: str,
-                                attrib_value: str) -> Element:
+                                attrib_value: str) -> str:
         """
-        devuelve el subelementos de self.p en path2 cuyo atributo attrib
+        devuelve el texto subelementos de self.p en path2 cuyo atributo attrib
             tiene el valor attrib_value
         """
         for element in self.p.findall(path2):
             if element.get(attrib) == attrib_value:
-                return element
+                return element.get(attrib)
         return None
 
 
@@ -182,6 +191,425 @@ class Project(object):
             return True
         return False
 
+
+    def pretty_xml_get(self):
+        """
+        devuelve el elemento para visualización
+        """
+        s1 = ET.tostring(self.p, encoding='Latin-1')
+        s1 = s1.decode('Latin-1')
+        s1 = s1.replace('\t', ' ')
+        return s1
+
+
+    def xygraphs(self, dir_dst: str, date1: date, date2: date):
+        """
+        se ejecutan los select y se preparan los datos para llamar a las
+            funciones de matplotlib que dibuja los graficos XY
+        """
+        from math import sqrt
+        import os.path
+        from xyts_mpl import plt1_nst, plt2_nst, plt1_nst_2_xml, plt2_nst_2_xml
+        from db_connection import con_get
+
+        # conexión a la base de datos
+        dbtype = self.element_get('db').get('type').strip()
+        con = con_get(dbtype, self.element_get('db').text.strip())
+        cur = con.cursor()
+
+        # puntos en los que vana hacer los gráficos xy
+        select = self.element_get('master/select').text.strip()
+        cur.execute(select)
+        data_master = [row for row in cur]
+
+        if not data_master:
+            a = 'la select master no devuelve datos'
+            logging.append(a, False)
+            raise ValueError(a)
+
+        # posiciones de elementos clave en la select
+        icod = self.element_with_atribb_get('master/col', 'type', 'cod')
+        icod = int(icod) - 1
+        ixutm = prj.element_with_atribb_get('master/col', 'type', 'xutm')
+        if ixutm:
+            ixutm = int(ixutm) - 1
+        iyutm = prj.element_with_atribb_get('master/col', 'type', 'yutm')
+        if iyutm:
+            iyutm = int(iyutm) - 1
+        if ixutm and iyutm:
+            utm = True
+            st = 'cod\tfecha1\tfecha2\tnum_datos\ttipo\t' +\
+            'xutm\tyutm\n'
+        else:
+            utm = False
+            st = 'cod\tfecha1\tfecha2\tnum_datos\ttipo\n'
+
+        f_summary = open(SUMMARY_FILE, 'w')
+        f_summary.write(f'{st}')
+
+        ngraph = 0
+        minmax = None
+        for i, row in enumerate(data_master):
+            date1 = Project.date_in_where(dbtype, date1)
+            date2 = Project.date_in_where(dbtype, date2)
+            select = prj.element_get('upper_serie/select').text.strip()
+            cur.execute(select, (row[icod], date1, date2))
+            x_upper, y_upper = Project.ts_get(dbtype, cur)
+            if x_upper < 2:
+                logging.append('El punto {row[icod]} tiene < 2 datos')
+                yield(i+1, len(data_master))
+                continue
+
+            data_in_upper_plot = True
+            x_upper_plot = [x]
+            y_upper_plot = [y]
+            legends_upper_plot = [data[ini][icod]]
+            axis_name_upper_plot = prj.graf_axis_name_get()[1]
+
+            cod_master.append(data[ini][icod])
+            mindate = x_upper_plot[0][0]
+            maxdate = x_upper_plot[0][-1]
+            if not minmax:
+                minmax = [mindate, maxdate]
+            else:
+                if mindate < minmax[0]:
+                    minmax[0] = mindate
+                if maxdate>minmax[1]:
+                    minmax[1] = maxdate
+
+            dt = ['{}/{}/{}'.format(dt1.day, dt1.month, dt1.year) \
+                  for dt1 in (mindate, maxdate)]
+            data_summary.write('{0}\t{1}\t{2}\t{3:d}\n' \
+                               .format(data[ini][icod], dt[0], dt[1], len(x)))
+
+            if prj.sql_upper_relation_bdd_get() and \
+            self.only1UpperPlot.get() == 0:
+
+                # puntos relacionados con el punto principal de plot(1, 1)
+                select1 = prj.sql_upper_relation_select_get() \
+                .format(data[ini][icod])
+                cur.execute(select1)
+                data_ur = [row1 for row1 in cur1]
+
+                for row in data_ur:
+                    # datos de cada punto relacionado con el punto principal
+                    # en plot(1, 1)
+                    col = prj.sql_upper_relation_others_cod_get()
+                    select2 = prj.sql_upper_select_get().format(row[col-1])
+                    cur2 = cursors[prj.sql_upper_bdd_get()]
+                    cur2.execute(select2)
+                    data_u = [row2 for row2 in cur2]
+
+                    if len(data_u) < 2:
+                        a = 'Punto {}, upper_relation: el punto asociado ' +\
+                        '{} tiene <2 datos'.format(str(data[ini][icod]),
+                                                   str(row[col-1]))
+                        logging.append(a, toScree=False)
+                        numIncidencias += 1
+                        continue
+
+                    xdistancia = -1.
+                    if prj.sql_upper_relation_sql_distancia_bdd_get():
+                        # coordenadas para calcular la distancia entre 2 puntos
+                        select3 = \
+                        prj.sql_upper_relation_sql_distancia_select_get() \
+                        .format(row[0],row[1])
+                        cur3 = \
+                        cursors[prj.sql_upper_relation_sql_distancia_bdd_get()]
+                        cur3.execute(select3)
+                        data_d = [row3 for row3 in cur3]
+                        if len(data_d) == 2:
+                            xdistancia = sqrt((data_d[0][0]-data_d[1][0])**2 \
+                                              + (data_d[0][1]-data_d[1][1])**2)
+
+                    data_u = np.array(data_u)
+                    ix_u = prj.sql_upper_x_col_get() - 1
+                    x_u = [date(item.year, item.month, item.day) \
+                           for item in data_u[:, ix_u]]
+                    y_u = data_u[:, prj.sql_upper_y_col_get() - 1]
+                    mindate = min(mindate, x_u[0])
+                    maxdate = max(maxdate, x_u[-1])
+
+                    x_upper_plot.append(x_u)
+                    y_upper_plot.append(y_u)
+                    if xdistancia > 0.:
+                        a = '{0:s} ({1:0.1f} m)' \
+                            .format(row[col - 1], xdistancia)
+                        legends_upper_plot.append(a)
+                    else:
+                        legends_upper_plot.append(row[col - 1])
+
+                    if row[col - 1] not in cod_upper:
+                        cod_upper.append(row[col - 1])
+
+            if prj.sql_lower_relation_bdd_get() and \
+            self.upperPlotOnly.get() == 0:
+                # puntos relacionados con el punto principal de plot(1, 1)
+                # para representar en plot(1, 2)
+                select_lr = prj.sql_lower_relation_select_get() \
+                .format(data[ini][icod])
+                cur_lr = cursors[prj.sql_lower_relation_bdd_get()]
+                cur_lr.execute(select_lr)
+                data_lr = [row_lr for row_lr in cur_lr]
+
+                x_lower_plot = []
+                y_lower_plot = []
+                legends_lower_plot = []
+                axis_name_lower_plot = prj.graf_axis_name_get()[2]
+                for row in data_lr:
+                    d1 = "{0:d}/{1:d}/{2:d}" \
+                    .format(mindate.month,mindate.day,mindate.year)
+                    d2 = "{0:d}/{1:d}/{2:d}" \
+                    .format(maxdate.month,maxdate.day,maxdate.year)
+                    # datos de cada punto en plot(1, 2)
+                    col = prj.sql_lower_relation_others_cod_get()
+                    select_l = prj.sql_lower_select_get() \
+                    .format(row[col - 1], d1, d2)
+                    cur_l = cursors[prj.sql_lower_bdd_get()]
+                    cur_l.execute(select_l)
+                    data_l = [row_l for row_l in cur_l]
+                    if len(data_l) < 2:
+                        a = 'El punto {}, lower_relation: el punto asociado' +\
+                        ' {} tiene <2 datos  entre las fechas {} y {}' \
+                        .format(str(data[ini][icod]), str(row[col-1]),
+                                d1, d2)
+                        logging.append(a, toScreen=False)
+                        numIncidencias += 1
+                        continue
+
+                    data_in_lower_plot = True
+                    data_l = np.array(data_l)
+
+                    a = [data_l[:, prj.sql_lower_x_col_get() - 1].tolist()]
+                    b = [date(item.year, item.month, item.day) \
+                         for item in a[0]]
+                    x_lower_plot.append(b)
+                    a = [data_l[:, prj.sql_lower_y_col_get() - 1].tolist()]
+                    y_lower_plot.append(a[0])
+                    legends_lower_plot.append(str(row[col - 1]))
+
+                    if row[col - 1] not in cod_lower:
+                        cod_lower.append(row[col - 1])
+
+            try:
+                titulos = [User_interface.__str_from_row(titulo['text'],
+                                                         data[ini],
+                                                         titulo['iths']) \
+                        for titulo in prj.sql_master_titul_get()]
+                if len(titulos) > 1:
+                    titulos = '\n'.join(titulos)
+                    titulos = titulos
+            except:
+                if isinstance(data[ini][icod], str):
+                    a = 'error al formar el nombre del fichero del punto {}' \
+                    .format(data[ini][icod])
+                else:
+                    a = 'error al formar el nombre del fichero del punto {}' \
+                    .format(data[ini][icod])
+                logging.append(a, toScreen=False)
+                raise ValueError(a)
+
+            # nombre del fichero
+            ngraph += 1
+            try:
+                name_file = User_interface.__str_from_row(prj.file_name_get(),
+                                                          data[ini],
+                                                          prj.file_name_iths_get(),
+                                                          'png',
+                                                          num_graf)
+            except:
+                a = 'Error al formar el nombre del fichero del punto {}' \
+                .format(data[ini][icod])
+                logging.append(a, toScreen=False)
+                raise ValueError(a)
+
+            dst = os.path.join(dir_dst, name_file)
+
+            # se graba el grafico
+            try:
+                if data_in_upper_plot and data_in_lower_plot:
+                    plt2_nst(x_upper_plot, y_upper_plot, legends_upper_plot,
+                             axis_name_upper_plot, x_lower_plot, y_lower_plot,
+                             legends_lower_plot, axis_name_lower_plot,
+                             titulos, dst)
+
+                    if self.dataToFile.get() == 1:
+                        names = os.path.splitext(name_file)
+                        dst=os.path.join(dir_dst,names[0] + '.xml')
+                        plt2_nst_2_xml(x_upper_plot, y_upper_plot,
+                                       legends_upper_plot,
+                                       axis_name_upper_plot, x_lower_plot,
+                                       y_lower_plot, legends_lower_plot,
+                                       axis_name_lower_plot, titulos, dst)
+
+                elif data_in_upper_plot and not data_in_lower_plot:
+                    plt1_nst(x_upper_plot, y_upper_plot, legends_upper_plot,
+                             titulos, axis_name_upper_plot, dst)
+
+                    if self.dataToFile.get() == 1:
+                        names = os.path.splitext(name_file)
+                        dst = os.path.join(dir_dst,names[0]+'.xml')
+                        plt1_nst_2_xml(x_upper_plot, y_upper_plot,
+                                       legends_upper_plot,
+                                       axis_name_upper_plot, titulos, dst)
+
+            except SystemExit:
+                self.ngraf.set(0)
+                self.icount.set(0)
+                return
+            except:
+                a = 'Error en grafico punto {}\n{}\nContinuar?' \
+                .format(cod_master[len(cod_master)-1], format_exc())
+                logging.append(a, toScreen=False)
+                numIncidencias += 1
+                if tk.messagebox.askyesno(self.__module__, a):
+                    continue
+                else:
+                    self.ngraf.set(0)
+                    self.icount.set(0)
+                    return
+
+            if self.dataToFile.get() == 1:
+                names = os.path.splitext(name_file)
+                dst = os.path.join(dir_dst, names[0] + '.xml')  # ,
+
+            self.icount.set(self.icount.get() + 1)
+            self.master.update()
+
+            if ini == 0 and self.pauseXY1.get() == 1:
+                if not tk.messagebox.askyesno(self.__module__,
+                                              "Se ha grabado el primer' +\
+                                              ' gráfico\nDesea continuar?"):
+                    break
+
+        if minmax is not None:
+            strminmax = ['{0:d}/{1:d}/{2:d}'.format(dt1.day, dt1.month,
+                         dt1.year) for dt1 in minmax]
+
+        # grabar_localizaciones
+        if self.grabar_localizaciones.get() == 1:
+            n = len(cod_master) + len(cod_upper) + len(cod_lower)
+            self.ngraf.set(n)
+            self.icount.set(0)
+            ic=0
+            f = open(os.path.join(dir_dst,
+                                  User_interface.__file_locations), 'w')
+
+            if prj.sql_upper_locations_bdd_get() and \
+            len(prj.sql_upper_locations_select_get()) > 0:
+                f.write('#puntos representados\n#COD\tX\tY\tTipo\n')
+                for cod1 in cod_master:
+                    select_ul = prj.sql_upper_locations_select_get() \
+                    .format(cod1)
+                    cur_ul = cursors[prj.sql_upper_locations_bdd_get()]
+                    cur_ul.execute(select_ul)
+                    data_ul = [row_ul for row_ul in cur_ul]
+                    if len(data_ul) > 0:
+                        for row in data_ul:
+                            ic += 1
+                            self.icount.set(ic)
+                            f.write('{0}\t{1:0.2f}\t{2:0.2f}\tprincipal\n' \
+                                    .format(row[0], row[1], row[2]))
+                for cod1 in cod_upper:
+                    select_ul = prj.sql_upper_locations_select_get() \
+                    .format(cod1)
+                    cur_ul = cursors[prj.sql_upper_locations_bdd_get()]
+                    cur_ul.execute(select_ul)
+                    data_ul = [row_ul for row_ul in cur_ul]
+                    if len(data_ul) > 0:
+                        for row in data_ul:
+                            if row[0] not in cod_master:
+                                ic += 1
+                                self.icount.set(ic)
+                                f.write('{0}\t{1:0.2f}\t{2:0.2f}\tauxiliar\n'\
+                                        .format(row[0], row[1], row[2]))
+            else:
+                tk.messagebox.showinfo(self.__module__,
+                                       'No está definido el elemento sql' +\
+                                       ' type=upper_locations' )
+                n = len(cod_lower)
+                self.ngraf.set(n)
+
+            if prj.sql_lower_locations_bdd_get() and \
+            len(prj.sql_lower_locations_select_get()) > 0:
+                for cod1 in cod_lower:
+                    select_ll = prj.sql_lower_locations_select_get() \
+                    .format(cod1)
+                    cur_ll = cursors[prj.sql_lower_locations_bdd_get()]
+                    cur_ll.execute(select_ll)
+                    data_ll = [row_ll for row_ll in cur_ll]
+                    if len(data_ll) > 0:
+                        for row in data_ll:
+                            ic += 1
+                            self.icount.set(ic)
+                            f.write('{0}\t{1:0.2f}\t{2:0.2f}\tgraf. ' +\
+                                    'inferior\n' \
+                                    .format(row[0], row[1], row[2]))
+            else:
+                tk.messagebox.showinfo(self.__module__,
+                                       'No está definido el elemento sql' +\
+                                       ' type=lower_locations' )
+
+            f.close()
+
+        self.ngraf.set(0)
+        self.icount.set(0)
+
+        self.master.configure(cursor='arrow')
+        a = 'Proceso finalizado\nLas series de los puntos principales se' +\
+        ' sitúan entre\n{} y {}'.format(strminmax[0], strminmax[1])
+        if numIncidencias > 0:
+            a = a + '\nSe han producido {0:d} incidencias, grabadas en\n{1}\n'\
+            .format(numIncidencias, logging.file_name_get())
+        tk.messagebox.showinfo(self.__module__, a)
+
+        a = os.path.join(dir_dst, User_interface.__file_summary)
+        contents = data_summary.getvalue()
+        f = open(a, 'w')
+        f.write('{}\n'.format(prj.project_name_get()))
+        f.write('{}\n'.format(contents))
+        f.close()
+
+
+    @staticmethod
+    def date_in_where(dbtype: str, date1: str, sep: str='/'):
+        """
+        devuelva una fecha válida para usar en el where de la select que
+            devuelve los datos
+        """
+        a = date1.split(sep)
+        d = date(int(a[2]), int(a[1]), int(a[0]))
+        if dbtype == 'ms_access':
+            return d
+        elif dbtype == 'sqlite':
+            return d.strftime('%Y-%m-%d')
+        else:
+            raise ValueError(f'{dbtype} no es un tipo d bdd válido')
+
+
+    @staticmethod
+    def ts_get(dbtype: str, cur):
+        """
+        devuelve la serie x e y para el gráfico
+        cur es un objeto cursor
+        """
+        def acces_aux(item):
+            d = date(item.year, item.month, item.day)
+            return d.strftime('%Y-%m-%d')
+
+        tmp = [row for row in cur]
+        y_upper = np.array([row[1] for row in tmp])
+        if dbtype == 'ms_access':
+            x_upper = (acces_aux(row[0]) for row in tmp)
+        elif dbtype == 'sqlite':
+            x_upper = (row[0] for row in tmp)
+        else:
+            raise ValueError(f'{dbtype} no es un tipo d bdd válido')
+        return np.array(x_upper, dtype='datetime64'), y_upper
+
+
+
+# =========================================================================
 
     def select_get(self, path2: str) -> str:
         """
@@ -228,12 +656,12 @@ class Project(object):
         return False
 
 
-    def col_get(self, sql_type: str, col_type: str ) -> int:
-        """
-        devuelve el texto del elemento col con type col_type en el elemento
-        sql con type sql_type
-        """
-        esql = self.p.sql_get(sql_type)
+#    def col_get(self, sql_type: str, col_type: str ) -> int:
+#        """
+#        devuelve el texto del elemento col con type col_type en el elemento
+#        sql con type sql_type
+#        """
+#        esql = self.p.sql_get(sql_type)
 
 
 # =========================================================================
@@ -648,233 +1076,3 @@ class Project(object):
         f.close()
 
 
-    def __check1(self):
-        """
-        Para eliminar
-        comprueba que la estructura de datos está bien formada
-        comprobando que no lanza ninguna excepcion al ejecutar todos los
-        metodos _get de la clase Project
-        """
-        import inspect
-        import types
-
-        methodList = [n for n, v in \
-                      inspect.getmembers(self, inspect.ismethod) \
-                      if isinstance(v, types.MethodType)]
-
-        for methodName in methodList:
-            if methodName.endswith('_get'):
-                func = getattr(self, methodName)
-                _ = func()
-
-
-    @staticmethod
-    def xml_tree_as_str():
-        """
-        Para eliminar
-        crea un xml tree con la estructura que necesita el programa para ser
-            ejecutado
-        los contenidos son de ejemplo
-        el nombre del primer tag esta definido como Project.__root_tag
-        cada proyecto se identifica con un tag de nombre Project.__project_tag
-            que cuelga
-        directamente del primer tag
-        el resto de tags que se crean son despues chequeados con los getter
-            de la clase
-        """
-        from xml.etree.ElementTree import Element, SubElement, Comment \
-        , tostring
-
-        top = Element(Project.__root_tag)
-
-        #tag project: cada proyecto tiene 3 tags file, graf y sql
-        project=SubElement(top, Project.__project_tag,
-                           name="Project description", type="1")
-
-        #tag file
-        sube = SubElement(project, 'file', name="{0:03d}_{1}")
-        sube.append(Comment('name es un molde (formado por elementos {} )' +\
-                            'para el nombre del fichero los valores se' +\
-                            ' toman de la select de tipo master'))
-        sube_1 = SubElement(sube, 'col')
-        sube_1.append(Comment('hay tantos tag col como elementos {} ' +\
-                              'en name. Es la num de columna del select' +\
-                              ' master'))
-        sube_1.text = '1'
-
-        sube_1 = SubElement(sube, 'col')
-        sube_1.text = '2'
-
-        #tag graf
-        sube = SubElement(project, 'graf', type="XY")
-
-        sube_1 = SubElement(sube, 'axis_name')
-        sube_1.append(Comment('lista con los nombres de 3 ejes: X, Y ' +\
-                              'superior, Y inferior'))
-        sube_1.text = "[' ', 'm s.n.m.', 'P dmm/d']"
-
-        sube_1 = SubElement(sube, 'polcrv')
-        sube_1.append(Comment('lista de 2 elementos con el tipo de ' +\
-                              'grafico en cada subplot'))
-        sube_1.text = "['LINEAR','BARS']"
-
-        #tag sql master
-        sube=SubElement(project, 'sql', type="master",  bdd="path2some.mdb",
-                        select="some valid sql select" )
-        sube.append(Comment('la select debe contener las columas implicadas' +\
-                    ' en el nombre del fichero una columna con el id del' +\
-                    ' elemento a representar, la fecha de la medida y el' +\
-                    ' valor de la medida. Tambien debe contener una clasula' +\
-                    ' WHERE del tipo IPA2.FECHA&gt;#_lower_bound_date_#' +\
-                    ' AND IPA2.FECHA&lt;#_upper_bound_date_#, donde' +\
-                    ' #_lower_bound_date_# y #_upper_bound_date_# son' +\
-                    ' moldes que se sustituyen con las fechas que se' +\
-                    ' indican en la interfaz'))
-
-        sube_1 = SubElement(sube, 'titul',  line="1", text="Piezometro {}")
-        sube_1.append(Comment('titulo del grafico en la linea line text' +\
-                              ' es el molde para la linea 1'))
-
-        sube_2=SubElement(sube_1, 'col')
-        sube_2.append(Comment('num de columna en el select para la linea' +\
-                              ' de titulo, tiene que haber tantos tag col' +\
-                              ' como moldes en la linea de titulo, si 0' +\
-                              ' indica el num de grafico'))
-        sube_2.text = "0"
-
-        sube_1 = SubElement(sube, 'cod',  col="3")
-        sube_1.append(Comment('num python de columna en la select para la' +\
-                              ' id del elemento que se va a representar'))
-
-        sube_1 = SubElement(sube, 'x',  col="4")
-        sube_1.append(Comment('num de columna en la select para la serie' +\
-                              ' que se represenat en el eje X. Debe ser de' +\
-                              ' tipo fecha'))
-
-        sube_1 = SubElement(sube, 'y',  col="5")
-        sube_1.append(Comment('num de columna en la select para la serie' +\
-                              ' que se represenat en el eje Y. Debe ser' +\
-                              ' de tipo float o int'))
-
-        #tag sql upper_relation
-        sube = SubElement(project, 'sql', type="upper_relation",
-                          bdd="path2some.mdb",
-                          select='SELECT COD1,COD2 FROM IPA1_SELF WHERE' +\
-                          ' COD1="{}"')
-        sube.append(Comment('en el tag sql upper_relation (opcional) se' +\
-                            ' escribe la select establece la relacion' +\
-                            ' entre los codigos de puntos de la select' +\
-                            ' master con otros puntos que completan su' +\
-                            ' informacion, similar a la que se indica' +\
-                            ' en el ejemplo'))
-
-        sube_1=SubElement(sube, 'current', col="1")
-        sube_1.append(Comment('columna del codigo del punto principal' +\
-                              ' en la select'))
-
-        sube_1=SubElement(sube, 'others', col="2")
-        sube_1.append(Comment('columna del codigo de el/los punto' +\
-                              ' relacionado con el principal en la select'))
-
-        sube_1=SubElement(sube, 'sql', type='distancia', bdd="path2some.mdb",
-                          select="SELECT X_UTM,Y_UTM FROM IPA1 WHERE" +\
-                          " COD='{}' OR COD='{}'")
-        sube_1.append(Comment('define una select que devuelve las' +\
-                              ' coordenadas de los puntos que se' +\
-                              ' representan en el subplot 1'))
-
-        #tag sql upper
-        sube=SubElement(project, 'sql', type="upper",  bdd="path2some.mdb",
-                        select="SELECT IPA2.COD,IPA2.FECHA,IPA1.Z-IPA2.PNP" +\
-                        " AS CNP FROM IPA1 IPA1 INNER JOIN IPA2 ON" +\
-                        " IPA1.COD=IPA2.COD WHERE IPA1.COD='{}' ORDER" +\
-                        " BY IPA2.FECHA" )
-        sube.append(Comment('el tag sql upper (solo obligatorio si esta' +\
-                            ' definido el tag upper_relation) devuelve los' +\
-                            ' datos de los puntos que se representan en el' +\
-                            ' subplot 1, similar a la que se indica en' +\
-                            ' el ejemplo'))
-
-        sube_1 = SubElement(sube, 'cod', col="1")
-        sube_1.append(Comment('columna del codigo de el/los puntos cuyos' +\
-                              ' datos se representan'))
-
-        sube_1 = SubElement(sube, 'x',  col="2")
-        sube_1.append(Comment('num de columna en la select para la serie' +\
-                              ' que se represenat en el eje X. Debe ser' +\
-                              ' de tipo fecha'))
-
-        sube_1 = SubElement(sube, 'y',  col="3")
-        sube_1.append(Comment('num de columna en la select para la serie' +\
-                              ' que se represenat en el eje Y. Debe ser' +\
-                              ' de tipo float o int'))
-
-        #tag sql lower_relation
-        sube = SubElement(project, 'sql', type="lower_relation",
-                          bdd="path2some.mdb",
-                          select='SELECT IDIPA1,IDINM FROM IPA1_INM' +\
-                          ' WHERE IDIPA1="{}"')
-        sube.append(Comment('en el tag sql lower_relation (opcional) se' +\
-                            ' escribe la select establece la relacion entre' +\
-                            ' los codigos de puntos de la select master' +\
-                            ' con los puntos relacionados que se' +\
-                            ' representan en el subplot 2, similar a' +\
-                            ' la que se indica en el ejemplo'))
-
-        sube_1 = SubElement(sube, 'current', col="1")
-        sube_1.append(Comment('columna del codigo del punto del subplot 1'))
-
-        sube_1 = SubElement(sube, 'others', col="2")
-        sube_1.append(Comment('columna del codigo del punto relacionado' +\
-                              ' que se representa en el subplot 2'))
-
-        #tag sql lower
-        sube = SubElement(project, 'sql', type="lower",  bdd="path2some.mdb",
-                          select="SELECT IDINM,FECHA,P FROM P WHERE" +\
-                          " IDINM=&quot;{}&quot; AND FECHA&gt;=#{}# AND" +\
-                          " FECHA&lt;=#{}# AND P&gt;0 ORDER BY FECHA")
-        sube.append(Comment('en el tag sql lower (solo obligatorio si' +\
-                            ' esta definido el tag lower_relation) se' +\
-                            ' escribe la select que devuelve los datos del' +\
-                            ' subplot 2. Obligatoriamente debe tener tres' +\
-                            ' moldes; uno para el codigo del elemento que' +\
-                            ' se representa y los otros 2 para el rango de' +\
-                            ' fechas que se representa, similar a la que' +\
-                            ' se indica en el ejemplo'))
-
-        sube_1 = SubElement(sube, 'cod', col="1")
-        sube_1.append(Comment('columna del codigo de el/los punto cuyos' +\
-                              ' datos se representan'))
-
-        sube_1 = SubElement(sube, 'x',  col="2")
-        sube_1.append(Comment('columna en la select para la serie que se' +\
-                              ' represenat en el eje X. Debe ser de' +\
-                              ' tipo fecha'))
-
-        sube_1 = SubElement(sube, 'y',  col="3")
-        sube_1.append(Comment('columna en la select para la serie que se' +\
-                              ' represenat en el eje Y. Debe ser de tipo' +\
-                              ' float o int'))
-
-        #tag sql upper_locations
-        sube = SubElement(project, 'sql', type="upper_locations",
-                          bdd="path2some.mdb",
-                          select="SELECT COD,X_UTM,Y_UTM FROM IPA1" +\
-                          " WHERE COD='{}'")
-        sube.append(Comment('en el tag sql upper_locations (opcional) se' +\
-                            ' escribe la select que permite escribir las' +\
-                            ' coordenadas de los puntos que se representan' +\
-                            ' en el plot principal'))
-
-        #tag sql lower_locations
-        sube = SubElement(project, 'sql', type="lower_locations",
-                          bdd="path2some.mdb",
-                          select="SELECT COD,XUTM,YUTM FROM ESTACIONES" +\
-                          " WHERE COD={0:d}" )
-        sube.append(Comment('en el tag sql lower_locations (opcional) se' +\
-                            ' escribe la select que permite escribir las' +\
-                            ' coordenadas de los puntos que se' +\
-                            ' representan en el plot inferior'))
-
-        a = tostring(top, encoding="iso-8859-1" )
-        return a

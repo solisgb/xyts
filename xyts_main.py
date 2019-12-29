@@ -15,10 +15,10 @@ if __name__ == "__main__":
     try:
         import traceback
         from tkinter import Tk
-        from xyts_gui import User_interface
+        from xyts_gui import GUI
 
         root = Tk()
-        User_interface(root)
+        GUI(root)
 
     except ValueError:
         msg = traceback.format_exc()
