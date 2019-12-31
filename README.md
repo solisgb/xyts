@@ -1,4 +1,4 @@
 # xyts
 xy time series
 
-It records xy graphs using data stored in a database
+It records xy graphs stored in a database using matplotlib
