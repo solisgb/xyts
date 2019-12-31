@@ -4,6 +4,7 @@ import tkinter as tk
 from traceback import format_exc
 import littleLogging as logging
 
+TKINTNULL = 9999999
 
 class GUI(tk.Frame):
     """
@@ -15,15 +16,11 @@ class GUI(tk.Frame):
     __xoffset = 200
     __yoffset = 150
 
-    __file_last_do = 'xyts_lastdo.txt'
     __file_history = 'xyts_history.db'
-    __file_last_do_sections = ('Files', 'Select_dates')
     __xml = 'xyts.xml'
     __file_help = 'xyts_help.txt'
-    __file_locations = '_xyts_locations.txt'
     __lower_date = '01/01/1900'
     __title_window = 'xyts -xy time series-'
-    __program_files = (__file_last_do, __file_help)
 
 
     def __init__(self, master):
@@ -48,19 +45,19 @@ class GUI(tk.Frame):
             # lista de objetos Project en el fichero xyts_gui.__xml
             self.projects = []
             # índice del proyecto seleccionado en self.projects
-            self.selected_project: int = -1
+            self.selected_project: int = TKINTNULL
             # nombre del proyecto seleccionado
             self.selected_project_show = tk.StringVar()
             # directorio de resultados
             self.path_out = tk.StringVar()
-            # indicador del número de gráfico terminado
+            # indicador del número de gráfico grabados
             self.icount = tk.IntVar()
             # número total de gráficos potenciales en el proyecto
             self.ngraf = tk.IntVar()
             # indicador de grabar los datos representados [0, 1]
             self.dataToFile = tk.IntVar()
             # indicador de grabar solo el primer gráfico
-            self.only1UpperPlot = tk.IntVar()
+            self.only_master = tk.IntVar()
             # indicador de grabar solo el gráfico superior
             self.upperPlotOnly = tk.IntVar()
             # indicador de grabar el fichero de localizaciones de los puntos
@@ -163,7 +160,7 @@ class GUI(tk.Frame):
         frm_12 = tk.Frame(frm_grupo_10)
         self.ckb1=tk.Checkbutton(frm_12,
                                  text="Gráfico superior, solo serie principal",
-                                 variable=self.only1UpperPlot, pady=2,
+                                 variable=self.only_master, pady=2,
                                  state=tk.DISABLED)
         self.ckb1.pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
         self.ckb2=tk.Checkbutton(frm_12, text="Gráfico inferior deshabilitado",
@@ -236,22 +233,32 @@ class GUI(tk.Frame):
 
 
     @staticmethod
-    def __strdate2(str_date: str, sep: str='-') -> str:
+    def __strdate2gui(str_date: str, sep: str='-') -> str:
+        """
+        convert a date as str from format 'yyyy-mm-dd' to 'dd/mm/yyyy'
+        """
+        a = str_date.split(sep)
+        d1 = date(int(a[0]), int(a[1]), int(a[2]))
+        return d1.strftime('%d/%m/%Y')
+
+
+    @staticmethod
+    def __strdate2sqlite(str_date: str, sep: str='/') -> str:
         """
         convert a date as str from format 'dd/mm/yyyy' to 'yyyy-mm-dd'
         """
         a = str_date.split(sep)
-        d1 = date(int(a[0]), int(a[1]), int(a[2]))
+        d1 = date(int(a[2]), int(a[1]), int(a[0]))
         return d1.strftime('%Y-%m-%d')
 
 
     @staticmethod
-    def __str_to_date(str_date: str, sep: str='-') -> date:
+    def __str_to_date(str_date: str, sep: str='/') -> date:
         """
         convert a date as str from format 'dd/mm/yyyy' to date
         """
         a = str_date.split(sep)
-        return date(int(a[0]), int(a[1]), int(a[2]))
+        return date(int(a[2]), int(a[1]), int(a[0]))
 
 
     def __insert_last_action(self):
@@ -271,8 +278,8 @@ class GUI(tk.Frame):
                         'upper_date text, date_action text)')
 
             path_out = self.path_out.get()
-            lower_date = GUI.__strdate2(self.lower_date.get())
-            upper_date = GUI.__strdate2(self.upper_date.get())
+            lower_date = GUI.__strdate2sqlite(self.lower_date.get())
+            upper_date = GUI.__strdate2sqlite(self.upper_date.get())
             d1 = datetime.today()
             d1 = d1.strftime('%Y-%m-%d %H:%M:%S')
 
@@ -330,10 +337,11 @@ class GUI(tk.Frame):
             return
         finally:
             con.close()
-
+        lower_date = GUI.__strdate2gui(row['lower_date'])
+        upper_date = GUI.__strdate2gui(row['upper_date'])
         self.path_out.set(row['path_out'])
-        self.lower_date.set(row['lower_date'])
-        self.upper_date.set(row['upper_date'])
+        self.lower_date.set(lower_date)
+        self.upper_date.set(upper_date)
 
 
     def __exitMethod(self):
@@ -438,7 +446,7 @@ class GUI(tk.Frame):
 
         if self.projects[self.selected_project] \
                .exists_element('upper_relation'):
-            self.only1UpperPlot.set(0)
+            self.only_master.set(0)
             self.ckb1.config(state='normal')
 
         if self.projects[self.selected_project] \
@@ -454,7 +462,7 @@ class GUI(tk.Frame):
         """
         muestra la informacion del projecto seleccionado
         """
-        if self.selected_project < 0:
+        if self.selected_project > len(self.projects):
             return
         xml_str = self.projects[self.selected_project].pretty_xml_get()
         Child_show_text(self.master, xml_str, 'Proyecto seleccionado')
@@ -469,7 +477,7 @@ class GUI(tk.Frame):
         self.edub.config(state='disabled')
         self.edlb.config(state='disabled')
         self.listbox_05_01.selection_clear(0, tk.END)
-        self.selected_project = -1
+        self.selected_project = TKINTNULL
         i = len(self.selected_project_show.get())
         self.selected_project_show.set(i*' ')
 
@@ -479,7 +487,7 @@ class GUI(tk.Frame):
         llamada al metodo en el que se ejecutan los select y se
             graban los graficos
         """
-        if self.selected_project < 0:
+        if self.selected_project == TKINTNULL:
             tk.messagebox.showinfo(self.__module__,
                                    "No ha seleccionado un proyecto")
             return
@@ -490,7 +498,8 @@ class GUI(tk.Frame):
         self.icount.set(0)
         d1 = GUI.__str_to_date(self.lower_date.get())
         d2 = GUI.__str_to_date(self.upper_date.get())
-        counter = prj.xygraphs(dst, d1, d2)
+        only_master = self.only_master.get()
+        counter = prj.xygraphs(dst, d1, d2, only_master)
         try:
             for n, m in counter:
                 self.icount.set(n)
@@ -659,7 +668,7 @@ class GUI(tk.Frame):
 #                               .format(data[ini][icod], dt[0], dt[1], len(x)))
 #
 #            if prj.sql_upper_relation_bdd_get() and \
-#            self.only1UpperPlot.get() == 0:
+#            self.only_master.get() == 0:
 #
 #                # puntos relacionados con el punto principal de plot(1, 1)
 #                select1 = prj.sql_upper_relation_select_get() \

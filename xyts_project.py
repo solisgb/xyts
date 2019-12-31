@@ -5,9 +5,14 @@ from tkinter import messagebox
 import xml.etree.ElementTree as ET
 import littleLogging as logging
 
-
+# Tipos de bases de datos soportadas =========================================
 dbtypes = ('ms_access', 'sqlite')
+# Nombre del fichero resumen de datos en gráficos xy =========================
 SUMMARY_FILE = '_xyts_resumen.txt'
+# Tipo de punto en gráfico ===================================================
+TIPO_MASTER = 'master'
+TIPO_UPPER_AUX = 'upper_aux'
+TIPO_LOWER_AUX = 'lower_aux'
 
 
 class Project(object):
@@ -70,7 +75,7 @@ class Project(object):
             elementos requeridos
         Hay dos elementos que son opcionales y que no se comprueban:
             upper_relation: si existe el element toma sus datos de la select
-                grahp/upper_serie, que es requerido
+                grahp/upper_ts, que es requerido
             upper_relation/select_distancia: si existe sirve para calcular
                 la distancia entre un elemento en master/select y otro con
                 el que está relacionado mediante upper_relation
@@ -145,11 +150,11 @@ class Project(object):
         _ = element_get(prj_node, 'master/file/name')
         _ = element_get(prj_node, 'master/file/col', unique=False)
 
-        _ = element_get(prj_node, 'upper_serie/select')
+        _ = element_get(prj_node, 'upper_ts/select')
 
         node = element_get(prj_node, 'lower_relation', required=False)
         if node:
-            _ = element_get(prj_node, 'lower_serie/select')
+            _ = element_get(prj_node, 'lower_ts/select')
 
 
     def element_get(self, path2: str, attrib: str = None) -> ET.Element:
@@ -178,7 +183,7 @@ class Project(object):
         """
         for element in self.p.findall(path2):
             if element.get(attrib) == attrib_value:
-                return element.get(attrib)
+                return element.text.strip()
         return None
 
 
@@ -187,7 +192,7 @@ class Project(object):
         devuelve True si path2 es un subelemento de self.p
         """
         e = self.p.find(path2)
-        if e:
+        if isinstance(e, ET.Element):
             return True
         return False
 
@@ -202,14 +207,20 @@ class Project(object):
         return s1
 
 
-    def xygraphs(self, dir_dst: str, date1: date, date2: date):
+    def xygraphs(self, dir_dst: str, date1: date, date2: date,
+                 only_master: int):
         """
-        se ejecutan los select y se preparan los datos para llamar a las
+        Se ejecutan los select y se preparan los datos para llamar a las
             funciones de matplotlib que dibuja los graficos XY
+        dir_dst: directorio donde se graban los gráficos
+        date1, date2: fechas inicial y final para las select de datos
+        only_master: si existe un elemento upper_relation y only_master es 1
+            no se representarán los puntos relacionados con el master en el
+            gráfico superior
         """
         from math import sqrt
         import os.path
-        from xyts_mpl import plt1_nst, plt2_nst, plt1_nst_2_xml, plt2_nst_2_xml
+        from xyts_mpl import Time_series
         from db_connection import con_get
 
         # conexión a la base de datos
@@ -217,7 +228,7 @@ class Project(object):
         con = con_get(dbtype, self.element_get('db').text.strip())
         cur = con.cursor()
 
-        # puntos en los que vana hacer los gráficos xy
+        # puntos en los que van a hacer los gráficos xy
         select = self.element_get('master/select').text.strip()
         cur.execute(select)
         data_master = [row for row in cur]
@@ -227,130 +238,92 @@ class Project(object):
             logging.append(a, False)
             raise ValueError(a)
 
-        # posiciones de elementos clave en la select
+        # índices a las columnas cod, xutm, yutm en la select
         icod = self.element_with_atribb_get('master/col', 'type', 'cod')
         icod = int(icod) - 1
-        ixutm = prj.element_with_atribb_get('master/col', 'type', 'xutm')
-        if ixutm:
+        ixutm = self.element_with_atribb_get('master/col', 'type', 'xutm')
+        if ixutm: #  es un elemento opcional
             ixutm = int(ixutm) - 1
-        iyutm = prj.element_with_atribb_get('master/col', 'type', 'yutm')
+        iyutm = self.element_with_atribb_get('master/col', 'type', 'yutm')
         if iyutm:
             iyutm = int(iyutm) - 1
         if ixutm and iyutm:
-            utm = True
             st = 'cod\tfecha1\tfecha2\tnum_datos\ttipo\t' +\
             'xutm\tyutm\n'
         else:
-            utm = False
             st = 'cod\tfecha1\tfecha2\tnum_datos\ttipo\n'
 
         f_summary = open(SUMMARY_FILE, 'w')
         f_summary.write(f'{st}')
 
-        ngraph = 0
-        minmax = None
-        for i, row in enumerate(data_master):
+        for i, row_dm in enumerate(data_master):
             date1 = Project.date_in_where(dbtype, date1)
             date2 = Project.date_in_where(dbtype, date2)
-            select = prj.element_get('upper_serie/select').text.strip()
-            cur.execute(select, (row[icod], date1, date2))
+            select = self.element_get('upper_ts/select').text.strip()
+            cur.execute(select, (row_dm[icod], date1, date2))
             x_upper, y_upper = Project.ts_get(dbtype, cur)
-            if x_upper < 2:
-                logging.append('El punto {row[icod]} tiene < 2 datos')
+            if x_upper.size < 2:
+                logging.append(f'El punto {row_dm[icod]} tiene ' +\
+                               f'{x_upper.size:d} datos y no se hace gráfico')
                 yield(i+1, len(data_master))
                 continue
 
-            data_in_upper_plot = True
-            x_upper_plot = [x]
-            y_upper_plot = [y]
-            legends_upper_plot = [data[ini][icod]]
-            axis_name_upper_plot = prj.graf_axis_name_get()[1]
+            st = f'{row_dm[icod]}\t{x_upper[0]}\t{x_upper[-1]}\t' +\
+                f'{x_upper.size:d}\t{TIPO_MASTER}'
+            if ixutm:
+                st = st + f'\t{row_dm[ixutm]}\t{row_dm[iyutm]}'
+            f_summary.write(f'{st}\n')
 
-            cod_master.append(data[ini][icod])
-            mindate = x_upper_plot[0][0]
-            maxdate = x_upper_plot[0][-1]
-            if not minmax:
-                minmax = [mindate, maxdate]
-            else:
-                if mindate < minmax[0]:
-                    minmax[0] = mindate
-                if maxdate>minmax[1]:
-                    minmax[1] = maxdate
+            ts = [Time_series(x_upper, y_upper, row_dm[icod])]
 
-            dt = ['{}/{}/{}'.format(dt1.day, dt1.month, dt1.year) \
-                  for dt1 in (mindate, maxdate)]
-            data_summary.write('{0}\t{1}\t{2}\t{3:d}\n' \
-                               .format(data[ini][icod], dt[0], dt[1], len(x)))
+#            axis_name_ug = self.element_get('graph/y_axis_name')[0] +\
+#            .text.strip()  # y axis name in ug
 
-            if prj.sql_upper_relation_bdd_get() and \
-            self.only1UpperPlot.get() == 0:
+            if self.exists_element('upper_relation/select') and \
+            only_master !=1:
+                # puntos relacionados con row[icod]
+                select = self.element_get('upper_relation/select').text.strip()
+                cur.execute(select, (row_dm[icod],))
+                related_points = [row_ur[0] for row_ur in cur]
 
-                # puntos relacionados con el punto principal de plot(1, 1)
-                select1 = prj.sql_upper_relation_select_get() \
-                .format(data[ini][icod])
-                cur.execute(select1)
-                data_ur = [row1 for row1 in cur1]
-
-                for row in data_ur:
+                for cod in related_points:
                     # datos de cada punto relacionado con el punto principal
-                    # en plot(1, 1)
-                    col = prj.sql_upper_relation_others_cod_get()
-                    select2 = prj.sql_upper_select_get().format(row[col-1])
-                    cur2 = cursors[prj.sql_upper_bdd_get()]
-                    cur2.execute(select2)
-                    data_u = [row2 for row2 in cur2]
-
-                    if len(data_u) < 2:
-                        a = 'Punto {}, upper_relation: el punto asociado ' +\
-                        '{} tiene <2 datos'.format(str(data[ini][icod]),
-                                                   str(row[col-1]))
-                        logging.append(a, toScree=False)
-                        numIncidencias += 1
+                    # en el graph superior
+                    select = self.element_get('upper_serie/select')\
+                    .text.strip()
+                    cur.execute(select, (cod, date1, date2))
+                    x_upper, y_upper = Project.ts_get(dbtype, cur)
+                    if x_upper.size < 2:
+                        logging.append(f'El punto principal {row_dm[icod]} ' +\
+                                       f'está relacionado con {cod} pero ' +\
+                                       'no tiene datos en el rango de fechas')
                         continue
-
-                    xdistancia = -1.
-                    if prj.sql_upper_relation_sql_distancia_bdd_get():
-                        # coordenadas para calcular la distancia entre 2 puntos
-                        select3 = \
-                        prj.sql_upper_relation_sql_distancia_select_get() \
-                        .format(row[0],row[1])
-                        cur3 = \
-                        cursors[prj.sql_upper_relation_sql_distancia_bdd_get()]
-                        cur3.execute(select3)
-                        data_d = [row3 for row3 in cur3]
-                        if len(data_d) == 2:
-                            xdistancia = sqrt((data_d[0][0]-data_d[1][0])**2 \
-                                              + (data_d[0][1]-data_d[1][1])**2)
-
-                    data_u = np.array(data_u)
-                    ix_u = prj.sql_upper_x_col_get() - 1
-                    x_u = [date(item.year, item.month, item.day) \
-                           for item in data_u[:, ix_u]]
-                    y_u = data_u[:, prj.sql_upper_y_col_get() - 1]
-                    mindate = min(mindate, x_u[0])
-                    maxdate = max(maxdate, x_u[-1])
-
-                    x_upper_plot.append(x_u)
-                    y_upper_plot.append(y_u)
-                    if xdistancia > 0.:
-                        a = '{0:s} ({1:0.1f} m)' \
-                            .format(row[col - 1], xdistancia)
-                        legends_upper_plot.append(a)
+                    if self.exists_element('upper_relation/select_location'):
+                        select = \
+                        self.element_get('upper_serie/select_location')\
+                        .text.strip()
+                        cur.execute(select, (cod,))
+                        xyutm = cur.fetchone()
+                        dist = sqrt((row_dm[ixutm] - xyutm[0])**2 + \
+                        (row_dm[iyutm] - xyutm[1])**2)
+                        leg = f'{cod}, {dist:0.0f} m'
                     else:
-                        legends_upper_plot.append(row[col - 1])
+                        leg = f'{cod}'
+                    ts.append(Time_series(x_upper, y_upper, leg))
 
-                    if row[col - 1] not in cod_upper:
-                        cod_upper.append(row[col - 1])
 
-            if prj.sql_lower_relation_bdd_get() and \
+
+            if self.sql_lower_relation_bdd_get() and \
             self.upperPlotOnly.get() == 0:
-                # puntos relacionados con el punto principal de plot(1, 1)
-                # para representar en plot(1, 2)
+                # puntos relacionados con el punto principal del graph upper
                 select_lr = prj.sql_lower_relation_select_get() \
                 .format(data[ini][icod])
                 cur_lr = cursors[prj.sql_lower_relation_bdd_get()]
                 cur_lr.execute(select_lr)
                 data_lr = [row_lr for row_lr in cur_lr]
+
+
+
 
                 x_lower_plot = []
                 y_lower_plot = []
@@ -577,12 +550,10 @@ class Project(object):
         devuelva una fecha válida para usar en el where de la select que
             devuelve los datos
         """
-        a = date1.split(sep)
-        d = date(int(a[2]), int(a[1]), int(a[0]))
         if dbtype == 'ms_access':
-            return d
+            return date1
         elif dbtype == 'sqlite':
-            return d.strftime('%Y-%m-%d')
+            return date1.strftime('%Y-%m-%d')
         else:
             raise ValueError(f'{dbtype} no es un tipo d bdd válido')
 
@@ -590,17 +561,14 @@ class Project(object):
     @staticmethod
     def ts_get(dbtype: str, cur):
         """
-        devuelve la serie x e y para el gráfico
+        devuelve la serie x e y para el gráfico como np.arrays
         cur es un objeto cursor
         """
-        def acces_aux(item):
-            d = date(item.year, item.month, item.day)
-            return d.strftime('%Y-%m-%d')
 
         tmp = [row for row in cur]
         y_upper = np.array([row[1] for row in tmp])
         if dbtype == 'ms_access':
-            x_upper = (acces_aux(row[0]) for row in tmp)
+            x_upper = [row[0].strftime('%Y-%m-%d') for row in tmp]
         elif dbtype == 'sqlite':
             x_upper = (row[0] for row in tmp)
         else:
