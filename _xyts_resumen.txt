@@ -1,0 +1,2 @@
+cod	fecha1	fecha2	num_datos	tipo	xutm	yutm
+253180113	2011-02-07	2019-10-29	85	master	628369.0	4302862.0

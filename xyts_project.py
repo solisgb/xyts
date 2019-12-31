@@ -1,9 +1,11 @@
 # -*- coding: latin-1 -*
 from datetime import date
 import numpy as np
+from math import sqrt
 from tkinter import messagebox
 import xml.etree.ElementTree as ET
 import littleLogging as logging
+from xyts_mpl import Time_series
 
 # Tipos de bases de datos soportadas =========================================
 dbtypes = ('ms_access', 'sqlite')
@@ -218,9 +220,7 @@ class Project(object):
             no se representarán los puntos relacionados con el master en el
             gráfico superior
         """
-        from math import sqrt
         import os.path
-        from xyts_mpl import Time_series
         from db_connection import con_get
 
         # conexión a la base de datos
@@ -248,10 +248,10 @@ class Project(object):
         if iyutm:
             iyutm = int(iyutm) - 1
         if ixutm and iyutm:
-            st = 'cod\tfecha1\tfecha2\tnum_datos\ttipo\t' +\
+            st = 'cod\ttipo\tfecha1\tfecha2\tnum_datos\t' +\
             'xutm\tyutm\n'
         else:
-            st = 'cod\tfecha1\tfecha2\tnum_datos\ttipo\n'
+            st = 'cod\ttipo\tfecha1\tfecha2\tnum_datos\n'
 
         f_summary = open(SUMMARY_FILE, 'w')
         f_summary.write(f'{st}')
@@ -267,281 +267,269 @@ class Project(object):
                                f'{x_upper.size:d} datos y no se hace gráfico')
                 yield(i+1, len(data_master))
                 continue
-
-            st = f'{row_dm[icod]}\t{x_upper[0]}\t{x_upper[-1]}\t' +\
-                f'{x_upper.size:d}\t{TIPO_MASTER}'
-            if ixutm:
-                st = st + f'\t{row_dm[ixutm]}\t{row_dm[iyutm]}'
-            f_summary.write(f'{st}\n')
-
             ts = [Time_series(x_upper, y_upper, row_dm[icod])]
+
+            st = self.line_to_summary(self, TIPO_MASTER, row_dm, x_upper,
+                        icod, ixutm, iyutm)
+            f_summary.write(f'{st}\n')
 
 #            axis_name_ug = self.element_get('graph/y_axis_name')[0] +\
 #            .text.strip()  # y axis name in ug
 
             if self.exists_element('upper_relation/select') and \
             only_master !=1:
-                # puntos relacionados con row[icod]
-                select = self.element_get('upper_relation/select').text.strip()
-                cur.execute(select, (row_dm[icod],))
-                related_points = [row_ur[0] for row_ur in cur]
+                upper_ts = \
+                self.related_ts_get('upper_relation/select', cur, row_dm[icod],
+                                    'upper_ts/select', date1, date2, dbtype,
+                                    'upper_relation/select_location',
+                                    (row_dm[ixutm], row_dm[iyutm]))
+                if upper_ts:
+                    ts = ts + upper_ts
 
-                for cod in related_points:
-                    # datos de cada punto relacionado con el punto principal
-                    # en el graph superior
-                    select = self.element_get('upper_serie/select')\
-                    .text.strip()
-                    cur.execute(select, (cod, date1, date2))
-                    x_upper, y_upper = Project.ts_get(dbtype, cur)
-                    if x_upper.size < 2:
-                        logging.append(f'El punto principal {row_dm[icod]} ' +\
-                                       f'está relacionado con {cod} pero ' +\
-                                       'no tiene datos en el rango de fechas')
-                        continue
-                    if self.exists_element('upper_relation/select_location'):
-                        select = \
-                        self.element_get('upper_serie/select_location')\
-                        .text.strip()
-                        cur.execute(select, (cod,))
-                        xyutm = cur.fetchone()
-                        dist = sqrt((row_dm[ixutm] - xyutm[0])**2 + \
-                        (row_dm[iyutm] - xyutm[1])**2)
-                        leg = f'{cod}, {dist:0.0f} m'
-                    else:
-                        leg = f'{cod}'
-                    ts.append(Time_series(x_upper, y_upper, leg))
+            yield(i+1, len(data_master))
 
+        f_summary.close()
+        con.close()
+        messagebox.showinfo(self.__module__, 'Proceso finalizado')
 
-
-            if self.sql_lower_relation_bdd_get() and \
-            self.upperPlotOnly.get() == 0:
-                # puntos relacionados con el punto principal del graph upper
-                select_lr = prj.sql_lower_relation_select_get() \
-                .format(data[ini][icod])
-                cur_lr = cursors[prj.sql_lower_relation_bdd_get()]
-                cur_lr.execute(select_lr)
-                data_lr = [row_lr for row_lr in cur_lr]
-
-
-
-
-                x_lower_plot = []
-                y_lower_plot = []
-                legends_lower_plot = []
-                axis_name_lower_plot = prj.graf_axis_name_get()[2]
-                for row in data_lr:
-                    d1 = "{0:d}/{1:d}/{2:d}" \
-                    .format(mindate.month,mindate.day,mindate.year)
-                    d2 = "{0:d}/{1:d}/{2:d}" \
-                    .format(maxdate.month,maxdate.day,maxdate.year)
-                    # datos de cada punto en plot(1, 2)
-                    col = prj.sql_lower_relation_others_cod_get()
-                    select_l = prj.sql_lower_select_get() \
-                    .format(row[col - 1], d1, d2)
-                    cur_l = cursors[prj.sql_lower_bdd_get()]
-                    cur_l.execute(select_l)
-                    data_l = [row_l for row_l in cur_l]
-                    if len(data_l) < 2:
-                        a = 'El punto {}, lower_relation: el punto asociado' +\
-                        ' {} tiene <2 datos  entre las fechas {} y {}' \
-                        .format(str(data[ini][icod]), str(row[col-1]),
-                                d1, d2)
-                        logging.append(a, toScreen=False)
-                        numIncidencias += 1
-                        continue
-
-                    data_in_lower_plot = True
-                    data_l = np.array(data_l)
-
-                    a = [data_l[:, prj.sql_lower_x_col_get() - 1].tolist()]
-                    b = [date(item.year, item.month, item.day) \
-                         for item in a[0]]
-                    x_lower_plot.append(b)
-                    a = [data_l[:, prj.sql_lower_y_col_get() - 1].tolist()]
-                    y_lower_plot.append(a[0])
-                    legends_lower_plot.append(str(row[col - 1]))
-
-                    if row[col - 1] not in cod_lower:
-                        cod_lower.append(row[col - 1])
-
-            try:
-                titulos = [User_interface.__str_from_row(titulo['text'],
-                                                         data[ini],
-                                                         titulo['iths']) \
-                        for titulo in prj.sql_master_titul_get()]
-                if len(titulos) > 1:
-                    titulos = '\n'.join(titulos)
-                    titulos = titulos
-            except:
-                if isinstance(data[ini][icod], str):
-                    a = 'error al formar el nombre del fichero del punto {}' \
-                    .format(data[ini][icod])
-                else:
-                    a = 'error al formar el nombre del fichero del punto {}' \
-                    .format(data[ini][icod])
-                logging.append(a, toScreen=False)
-                raise ValueError(a)
+            # Título del gráfico
+#            try:
+#                titulos = [User_interface.__str_from_row(titulo['text'],
+#                                                         data[ini],
+#                                                         titulo['iths']) \
+#                        for titulo in prj.sql_master_titul_get()]
+#                if len(titulos) > 1:
+#                    titulos = '\n'.join(titulos)
+#                    titulos = titulos
+#            except:
+#                if isinstance(data[ini][icod], str):
+#                    a = 'error al formar el nombre del fichero del punto {}' \
+#                    .format(data[ini][icod])
+#                else:
+#                    a = 'error al formar el nombre del fichero del punto {}' \
+#                    .format(data[ini][icod])
+#                logging.append(a, toScreen=False)
+#                raise ValueError(a)
 
             # nombre del fichero
-            ngraph += 1
-            try:
-                name_file = User_interface.__str_from_row(prj.file_name_get(),
-                                                          data[ini],
-                                                          prj.file_name_iths_get(),
-                                                          'png',
-                                                          num_graf)
-            except:
-                a = 'Error al formar el nombre del fichero del punto {}' \
-                .format(data[ini][icod])
-                logging.append(a, toScreen=False)
-                raise ValueError(a)
-
-            dst = os.path.join(dir_dst, name_file)
+#            try:
+#                name_file = User_interface.__str_from_row(prj.file_name_get(),
+#                                                          data[ini],
+#                                                          prj.file_name_iths_get(),
+#                                                          'png',
+#                                                          num_graf)
+#            except:
+#                a = 'Error al formar el nombre del fichero del punto {}' \
+#                .format(data[ini][icod])
+#                logging.append(a, toScreen=False)
+#                raise ValueError(a)
+#
+#            dst = os.path.join(dir_dst, name_file)
 
             # se graba el grafico
-            try:
-                if data_in_upper_plot and data_in_lower_plot:
-                    plt2_nst(x_upper_plot, y_upper_plot, legends_upper_plot,
-                             axis_name_upper_plot, x_lower_plot, y_lower_plot,
-                             legends_lower_plot, axis_name_lower_plot,
-                             titulos, dst)
+#            try:
+#                if data_in_upper_plot and data_in_lower_plot:
+#                    plt2_nst(x_upper_plot, y_upper_plot, legends_upper_plot,
+#                             axis_name_upper_plot, x_lower_plot, y_lower_plot,
+#                             legends_lower_plot, axis_name_lower_plot,
+#                             titulos, dst)
+#
+#                    if self.dataToFile.get() == 1:
+#                        names = os.path.splitext(name_file)
+#                        dst=os.path.join(dir_dst,names[0] + '.xml')
+#                        plt2_nst_2_xml(x_upper_plot, y_upper_plot,
+#                                       legends_upper_plot,
+#                                       axis_name_upper_plot, x_lower_plot,
+#                                       y_lower_plot, legends_lower_plot,
+#                                       axis_name_lower_plot, titulos, dst)
+#
+#                elif data_in_upper_plot and not data_in_lower_plot:
+#                    plt1_nst(x_upper_plot, y_upper_plot, legends_upper_plot,
+#                             titulos, axis_name_upper_plot, dst)
+#
+#                    if self.dataToFile.get() == 1:
+#                        names = os.path.splitext(name_file)
+#                        dst = os.path.join(dir_dst,names[0]+'.xml')
+#                        plt1_nst_2_xml(x_upper_plot, y_upper_plot,
+#                                       legends_upper_plot,
+#                                       axis_name_upper_plot, titulos, dst)
+#
+#            except SystemExit:
+#                self.ngraf.set(0)
+#                self.icount.set(0)
+#                return
+#            except:
+#                a = 'Error en grafico punto {}\n{}\nContinuar?' \
+#                .format(cod_master[len(cod_master)-1], format_exc())
+#                logging.append(a, toScreen=False)
+#                numIncidencias += 1
+#                if tk.messagebox.askyesno(self.__module__, a):
+#                    continue
+#                else:
+#                    self.ngraf.set(0)
+#                    self.icount.set(0)
+#                    return
 
-                    if self.dataToFile.get() == 1:
-                        names = os.path.splitext(name_file)
-                        dst=os.path.join(dir_dst,names[0] + '.xml')
-                        plt2_nst_2_xml(x_upper_plot, y_upper_plot,
-                                       legends_upper_plot,
-                                       axis_name_upper_plot, x_lower_plot,
-                                       y_lower_plot, legends_lower_plot,
-                                       axis_name_lower_plot, titulos, dst)
+            # se graban los datos del gráfico
+#            if self.dataToFile.get() == 1:
+#                names = os.path.splitext(name_file)
+#                dst = os.path.join(dir_dst, names[0] + '.xml')  # ,
+#
+#            self.icount.set(self.icount.get() + 1)
+#            self.master.update()
+#
+#            if ini == 0 and self.pauseXY1.get() == 1:
+#                if not tk.messagebox.askyesno(self.__module__,
+#                                              "Se ha grabado el primer' +\
+#                                              ' gráfico\nDesea continuar?"):
+#                    break
+#
+#        if minmax is not None:
+#            strminmax = ['{0:d}/{1:d}/{2:d}'.format(dt1.day, dt1.month,
+#                         dt1.year) for dt1 in minmax]
 
-                elif data_in_upper_plot and not data_in_lower_plot:
-                    plt1_nst(x_upper_plot, y_upper_plot, legends_upper_plot,
-                             titulos, axis_name_upper_plot, dst)
+#        # grabar_localizaciones
+#        if self.grabar_localizaciones.get() == 1:
+#            n = len(cod_master) + len(cod_upper) + len(cod_lower)
+#            self.ngraf.set(n)
+#            self.icount.set(0)
+#            ic=0
+#            f = open(os.path.join(dir_dst,
+#                                  User_interface.__file_locations), 'w')
+#
+#            if prj.sql_upper_locations_bdd_get() and \
+#            len(prj.sql_upper_locations_select_get()) > 0:
+#                f.write('#puntos representados\n#COD\tX\tY\tTipo\n')
+#                for cod1 in cod_master:
+#                    select_ul = prj.sql_upper_locations_select_get() \
+#                    .format(cod1)
+#                    cur_ul = cursors[prj.sql_upper_locations_bdd_get()]
+#                    cur_ul.execute(select_ul)
+#                    data_ul = [row_ul for row_ul in cur_ul]
+#                    if len(data_ul) > 0:
+#                        for row in data_ul:
+#                            ic += 1
+#                            self.icount.set(ic)
+#                            f.write('{0}\t{1:0.2f}\t{2:0.2f}\tprincipal\n' \
+#                                    .format(row[0], row[1], row[2]))
+#                for cod1 in cod_upper:
+#                    select_ul = prj.sql_upper_locations_select_get() \
+#                    .format(cod1)
+#                    cur_ul = cursors[prj.sql_upper_locations_bdd_get()]
+#                    cur_ul.execute(select_ul)
+#                    data_ul = [row_ul for row_ul in cur_ul]
+#                    if len(data_ul) > 0:
+#                        for row in data_ul:
+#                            if row[0] not in cod_master:
+#                                ic += 1
+#                                self.icount.set(ic)
+#                                f.write('{0}\t{1:0.2f}\t{2:0.2f}\tauxiliar\n'\
+#                                        .format(row[0], row[1], row[2]))
+#            else:
+#                tk.messagebox.showinfo(self.__module__,
+#                                       'No está definido el elemento sql' +\
+#                                       ' type=upper_locations' )
+#                n = len(cod_lower)
+#                self.ngraf.set(n)
+#
+#            if prj.sql_lower_locations_bdd_get() and \
+#            len(prj.sql_lower_locations_select_get()) > 0:
+#                for cod1 in cod_lower:
+#                    select_ll = prj.sql_lower_locations_select_get() \
+#                    .format(cod1)
+#                    cur_ll = cursors[prj.sql_lower_locations_bdd_get()]
+#                    cur_ll.execute(select_ll)
+#                    data_ll = [row_ll for row_ll in cur_ll]
+#                    if len(data_ll) > 0:
+#                        for row in data_ll:
+#                            ic += 1
+#                            self.icount.set(ic)
+#                            f.write('{0}\t{1:0.2f}\t{2:0.2f}\tgraf. ' +\
+#                                    'inferior\n' \
+#                                    .format(row[0], row[1], row[2]))
+#            else:
+#                tk.messagebox.showinfo(self.__module__,
+#                                       'No está definido el elemento sql' +\
+#                                       ' type=lower_locations' )
 
-                    if self.dataToFile.get() == 1:
-                        names = os.path.splitext(name_file)
-                        dst = os.path.join(dir_dst,names[0]+'.xml')
-                        plt1_nst_2_xml(x_upper_plot, y_upper_plot,
-                                       legends_upper_plot,
-                                       axis_name_upper_plot, titulos, dst)
 
-            except SystemExit:
-                self.ngraf.set(0)
-                self.icount.set(0)
-                return
-            except:
-                a = 'Error en grafico punto {}\n{}\nContinuar?' \
-                .format(cod_master[len(cod_master)-1], format_exc())
-                logging.append(a, toScreen=False)
-                numIncidencias += 1
-                if tk.messagebox.askyesno(self.__module__, a):
-                    continue
-                else:
-                    self.ngraf.set(0)
-                    self.icount.set(0)
-                    return
+    def line_to_summary(self, tipo: str, row: list, xts: np.ndarray,
+                        icod: int, ixutm: int, iyutm: int) -> str:
+        """
+        Prepara un str para escribir en el fichero resumen
+        args
+        tipo: de punto (TIPO_MASTER, TIPO_UPPER_AUX, TIPO_LOWER_AUX)
+        row: lista con los datos del punto que se va a grabar en el
+            fichero de summary
+        xts: np.array con las fechas con datos
+        icod, ixutm, iyutm: índices del código del punto y sus coordenadas
+            en row (ixutm, iyutm pueden ser None)
+        """
+        st = f'{row[icod]}\t{tipo}\t{xts[0]}\t{xts[-1]}\t{xts.size:d}'
+        if ixutm and iyutm:
+            st = st + f'\t{row[ixutm]:0.0f]}\t{row[iyutm]:0.0f]}'
+        return st
 
-            if self.dataToFile.get() == 1:
-                names = os.path.splitext(name_file)
-                dst = os.path.join(dir_dst, names[0] + '.xml')  # ,
 
-            self.icount.set(self.icount.get() + 1)
-            self.master.update()
+    def related_ts_get(self, path_relation: str, cur, cod_master,
+                       path_data: str, date1, date2, dbtype: str,
+                       path_location: str, xy_dm: list):
+        """
+        Extrae las series temporales relacionadas con un punto master
+        LLamada solo desde xygraphs
+        args
+        path_relation: nombre de la select de relación (upper_relation/select,
+        lower_relation/select)
+        cur: cursor a la base de datos abierto en la func xygraphs
+        cod_master: es el código del punto obtenido en master/select y que ya
+            se ha comprobado que tiene datos, aunque no se sabe todavía si
+            tiene datos relacionados
+        path_data: path a la select de datos relacionados. Si se representan
+            en upper graph será upper_ts/select; si en lower graph
+            lower_ts/select lower_ts/select
+        date1, date2: fechas inferior y superior para hacer la select de datos
+            relacionados; el tipo depende de la base de datos (gestionado en
+            xygraphs)
+        dbtype: tipo de la base de datos
+        path_location: es un path opcional que si está presente sirve para
+            extraer las coordenadas del punto relacionado
+        xy_dm: son las coordenadas del punto master; si no se han obtenido sus
+            2 elementos serán None
+        """
+        ts_related = []
+        if not self.exists_element(path_relation):
+            return ts_related
 
-            if ini == 0 and self.pauseXY1.get() == 1:
-                if not tk.messagebox.askyesno(self.__module__,
-                                              "Se ha grabado el primer' +\
-                                              ' gráfico\nDesea continuar?"):
-                    break
+        # puntos relacionados con cod_master
+        select = self.element_get('upper_relation/select').text.strip()
+        cur.execute(select, (cod_master,))
+        related_points = [row_ur[0] for row_ur in cur]
 
-        if minmax is not None:
-            strminmax = ['{0:d}/{1:d}/{2:d}'.format(dt1.day, dt1.month,
-                         dt1.year) for dt1 in minmax]
-
-        # grabar_localizaciones
-        if self.grabar_localizaciones.get() == 1:
-            n = len(cod_master) + len(cod_upper) + len(cod_lower)
-            self.ngraf.set(n)
-            self.icount.set(0)
-            ic=0
-            f = open(os.path.join(dir_dst,
-                                  User_interface.__file_locations), 'w')
-
-            if prj.sql_upper_locations_bdd_get() and \
-            len(prj.sql_upper_locations_select_get()) > 0:
-                f.write('#puntos representados\n#COD\tX\tY\tTipo\n')
-                for cod1 in cod_master:
-                    select_ul = prj.sql_upper_locations_select_get() \
-                    .format(cod1)
-                    cur_ul = cursors[prj.sql_upper_locations_bdd_get()]
-                    cur_ul.execute(select_ul)
-                    data_ul = [row_ul for row_ul in cur_ul]
-                    if len(data_ul) > 0:
-                        for row in data_ul:
-                            ic += 1
-                            self.icount.set(ic)
-                            f.write('{0}\t{1:0.2f}\t{2:0.2f}\tprincipal\n' \
-                                    .format(row[0], row[1], row[2]))
-                for cod1 in cod_upper:
-                    select_ul = prj.sql_upper_locations_select_get() \
-                    .format(cod1)
-                    cur_ul = cursors[prj.sql_upper_locations_bdd_get()]
-                    cur_ul.execute(select_ul)
-                    data_ul = [row_ul for row_ul in cur_ul]
-                    if len(data_ul) > 0:
-                        for row in data_ul:
-                            if row[0] not in cod_master:
-                                ic += 1
-                                self.icount.set(ic)
-                                f.write('{0}\t{1:0.2f}\t{2:0.2f}\tauxiliar\n'\
-                                        .format(row[0], row[1], row[2]))
+        for cod in related_points:
+            # datos de cada punto relacionado con el punto principal
+            # en el graph superior o inferior
+            select = self.element_get(path_data)\
+            .text.strip()
+            cur.execute(select, (cod, date1, date2))
+            x_upper, y_upper = Project.ts_get(dbtype, cur)
+            if x_upper.size < 2:
+                logging.append(f'El punto principal {cod_master} ' +\
+                               f'está relacionado con {cod} pero ' +\
+                               'no tiene datos en el rango de fechas')
+                continue
+            if xy_dm[0] and xy_dm[1] and \
+            self.exists_element(path_location):
+                select = \
+                self.element_get(path_location).text.strip()
+                cur.execute(select, (cod,))
+                xyutm = cur.fetchone()
+                dist = sqrt((xy_dm[0] - xyutm[0])**2 + \
+                            (xy_dm[1] - xyutm[1])**2)
+                leg = f'{cod}, {dist:0.0f} m'
             else:
-                tk.messagebox.showinfo(self.__module__,
-                                       'No está definido el elemento sql' +\
-                                       ' type=upper_locations' )
-                n = len(cod_lower)
-                self.ngraf.set(n)
-
-            if prj.sql_lower_locations_bdd_get() and \
-            len(prj.sql_lower_locations_select_get()) > 0:
-                for cod1 in cod_lower:
-                    select_ll = prj.sql_lower_locations_select_get() \
-                    .format(cod1)
-                    cur_ll = cursors[prj.sql_lower_locations_bdd_get()]
-                    cur_ll.execute(select_ll)
-                    data_ll = [row_ll for row_ll in cur_ll]
-                    if len(data_ll) > 0:
-                        for row in data_ll:
-                            ic += 1
-                            self.icount.set(ic)
-                            f.write('{0}\t{1:0.2f}\t{2:0.2f}\tgraf. ' +\
-                                    'inferior\n' \
-                                    .format(row[0], row[1], row[2]))
-            else:
-                tk.messagebox.showinfo(self.__module__,
-                                       'No está definido el elemento sql' +\
-                                       ' type=lower_locations' )
-
-            f.close()
-
-        self.ngraf.set(0)
-        self.icount.set(0)
-
-        self.master.configure(cursor='arrow')
-        a = 'Proceso finalizado\nLas series de los puntos principales se' +\
-        ' sitúan entre\n{} y {}'.format(strminmax[0], strminmax[1])
-        if numIncidencias > 0:
-            a = a + '\nSe han producido {0:d} incidencias, grabadas en\n{1}\n'\
-            .format(numIncidencias, logging.file_name_get())
-        tk.messagebox.showinfo(self.__module__, a)
-
-        a = os.path.join(dir_dst, User_interface.__file_summary)
-        contents = data_summary.getvalue()
-        f = open(a, 'w')
-        f.write('{}\n'.format(prj.project_name_get()))
-        f.write('{}\n'.format(contents))
-        f.close()
+                leg = f'{cod}'
+            ts_related.append(Time_series(x_upper, y_upper, leg))
+        return ts_related
 
 
     @staticmethod
