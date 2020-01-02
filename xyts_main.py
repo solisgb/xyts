@@ -4,8 +4,12 @@ Created on 06/09/2019
 
 @author: Luis Solís
 
-Programa para hacer gráficos de series temporales; es una evolución del
-    programa dislin; permite hacer un gráfico con 2 subplots
+Programa para hacer gráficos de series temporales que se graban en un fichero
+    png. Cada png es una figura y cada figura puede tener 2 gráficos que
+    comparten el eje de las Y; en el gráfico superior se puede presentar la
+    evolución de una variable medida en varios puntos; el gráfico inferior es
+    opcional y se puede presentar la evolución de otra variable en otros
+    puntos
 """
 import littleLogging as logging
 

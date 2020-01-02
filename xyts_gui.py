@@ -4,24 +4,20 @@ import tkinter as tk
 from traceback import format_exc
 import littleLogging as logging
 
+WIDTH, HEIGHT = 660, 460
+XOFFSET, YOFFSET = 200, 150
 TKINTNULL = 9999999
+FILE_HISTORY = 'xyts_history.db'
+FILE_PROJECTS = 'xyts.xml'
+FILE_HELP = 'xyts_help.txt'
+LOWER_DATE = '01/01/1900'
+TITLE_WINDOW = 'xyts -xy time series-'
+
 
 class GUI(tk.Frame):
     """
-    GUI con tkinter
+    GUI con tkinter. No tiene ningún método público
     """
-
-    __width = 660
-    __height = 460
-    __xoffset = 200
-    __yoffset = 150
-
-    __file_history = 'xyts_history.db'
-    __xml = 'xyts.xml'
-    __file_help = 'xyts_help.txt'
-    __lower_date = '01/01/1900'
-    __title_window = 'xyts -xy time series-'
-
 
     def __init__(self, master):
         """
@@ -30,16 +26,16 @@ class GUI(tk.Frame):
         try:
             # geometría
             self.master = master
-            self.master.title(GUI.__title_window)
-            self.master.geometry(f'{GUI.__width:d}x{GUI.__height:d}+' +\
-                                 f'{GUI.__xoffset:d}+{GUI.__yoffset:d}')
-            self.master.maxsize(GUI.__width, GUI.__height)
-            self.master.protocol('WM_DELETE_WINDOW',self.__exitMethod)
+            self.master.title(TITLE_WINDOW)
+            self.master.geometry(f'{WIDTH:d}x{HEIGHT:d}+' +\
+                                 f'{XOFFSET:d}+{YOFFSET:d}')
+            self.master.maxsize(WIDTH, HEIGHT)
+            self.master.protocol('WM_DELETE_WINDOW', self.__exitMethod)
 
-            self.fname = GUI.__xml
+            self.fname = FILE_PROJECTS
 
             # variables específicas
-            # lista de objetos Project en el fichero xyts_gui.__xml
+            # lista de objetos Project en el fichero xyts_gui.FILE_PROJECTS
             self.projects = []
             # índice del proyecto seleccionado en self.projects
             self.selected_project: int = TKINTNULL
@@ -89,7 +85,7 @@ class GUI(tk.Frame):
 
         frm_01 = tk.Frame(frm_grupo_01)
         tk.Label(frm_01, text= 'Proyectos en {}' \
-                 .format(GUI.__xml), pady=5).pack(side=tk.TOP,
+                 .format(FILE_PROJECTS), pady=5).pack(side=tk.TOP,
                         anchor=tk.CENTER)
         frm_01.pack(side=tk.TOP, anchor=tk.W, fill=tk.X, expand=tk.NO)
 
@@ -267,7 +263,7 @@ class GUI(tk.Frame):
         MAX_ACTIONS = 50
 
         try:
-            con = sqlite3.connect(GUI.__file_history)
+            con = sqlite3.connect(FILE_HISTORY)
             cur = con.cursor()
             cur.execute('create table if not exists history ' +\
                         '(fid integer primary key, ' +\
@@ -316,10 +312,10 @@ class GUI(tk.Frame):
         today1 = date.today()
         defaults = {'path_out': '',
                     'upper_date': today1.strftime('%d/%m/%Y'),
-                    'lower_date': GUI.__lower_date}
+                    'lower_date': LOWER_DATE}
 
         try:
-            con = sqlite3.connect(GUI.__file_history)
+            con = sqlite3.connect(FILE_HISTORY)
             con.row_factory = sqlite3.Row
             cur = con.cursor()
             cur.execute('select * from history ' +\
@@ -356,14 +352,14 @@ class GUI(tk.Frame):
         from io import StringIO
         lines = StringIO()
         try:
-            f = open(GUI.__file_help, 'r')
+            f = open(FILE_HELP, 'r')
             for line in f.readlines():
                 lines.write(line)
             f.close()
         except:
             a = format_exc()
             logging.append(a, toScreen=False)
-            lines.write(f'Error al leer {GUI.__file_help}')
+            lines.write(f'Error al leer {FILE_HELP}')
 
         contents=lines.getvalue()
         Child_show_text(self.master,contents,'Ayuda')
