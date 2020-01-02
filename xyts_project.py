@@ -5,7 +5,7 @@ from math import sqrt
 from tkinter import messagebox
 import xml.etree.ElementTree as ET
 import littleLogging as logging
-from xyts_mpl import Time_series
+from xyts_mpl import Time_series, minmax_fechas
 
 # Tipos de bases de datos soportadas =========================================
 dbtypes = ('ms_access', 'sqlite')
@@ -210,7 +210,7 @@ class Project(object):
 
 
     def xygraphs(self, dir_dst: str, date1: date, date2: date,
-                 only_master: int):
+                 only_master: int, only_upper_graph: int):
         """
         Se ejecutan los select y se preparan los datos para llamar a las
             funciones de matplotlib que dibuja los graficos XY
@@ -219,6 +219,9 @@ class Project(object):
         only_master: si existe un elemento upper_relation y only_master es 1
             no se representarán los puntos relacionados con el master en el
             gráfico superior
+        only_upper_graph: si existe un elemento lower_relation y
+            only_upper_graph es 1 no se representarán los puntos relacionados
+            con el master en el gráfico inferior
         """
         import os.path
         from db_connection import con_get
@@ -234,9 +237,9 @@ class Project(object):
         data_master = [row for row in cur]
 
         if not data_master:
-            a = 'la select master no devuelve datos'
-            logging.append(a, False)
-            raise ValueError(a)
+            st = 'la select master no devuelve datos'
+            logging.append(st, False)
+            raise ValueError(st)
 
         # índices a las columnas cod, xutm, yutm en la select
         icod = self.element_with_atribb_get('master/col', 'type', 'cod')
@@ -269,15 +272,14 @@ class Project(object):
                 continue
             ts = [Time_series(x_upper, y_upper, row_dm[icod])]
 
-            st = self.line_to_summary(self, TIPO_MASTER, row_dm, x_upper,
+            st = self.line_to_summary(TIPO_MASTER, row_dm, x_upper,
                         icod, ixutm, iyutm)
             f_summary.write(f'{st}\n')
 
 #            axis_name_ug = self.element_get('graph/y_axis_name')[0] +\
 #            .text.strip()  # y axis name in ug
 
-            if self.exists_element('upper_relation/select') and \
-            only_master !=1:
+            if only_master !=1:
                 upper_ts = \
                 self.related_ts_get('upper_relation/select', cur, row_dm[icod],
                                     'upper_ts/select', date1, date2, dbtype,
@@ -286,30 +288,26 @@ class Project(object):
                 if upper_ts:
                     ts = ts + upper_ts
 
+            if only_upper_graph !=1:
+                min_date, max_date = minmax_fechas(ts, dbtype)
+                lower_ts = \
+                self.related_ts_get('lower_relation/select', cur, row_dm[icod],
+                                    'lower_ts/select', min_date, max_date,
+                                    dbtype, 'lower_relation/select_location',
+                                    (row_dm[ixutm], row_dm[iyutm]))
+            else:
+                lower_ts = []
+
+            title = self.title_get(path: str, row)
+
             yield(i+1, len(data_master))
+
+
 
         f_summary.close()
         con.close()
         messagebox.showinfo(self.__module__, 'Proceso finalizado')
 
-            # Título del gráfico
-#            try:
-#                titulos = [User_interface.__str_from_row(titulo['text'],
-#                                                         data[ini],
-#                                                         titulo['iths']) \
-#                        for titulo in prj.sql_master_titul_get()]
-#                if len(titulos) > 1:
-#                    titulos = '\n'.join(titulos)
-#                    titulos = titulos
-#            except:
-#                if isinstance(data[ini][icod], str):
-#                    a = 'error al formar el nombre del fichero del punto {}' \
-#                    .format(data[ini][icod])
-#                else:
-#                    a = 'error al formar el nombre del fichero del punto {}' \
-#                    .format(data[ini][icod])
-#                logging.append(a, toScreen=False)
-#                raise ValueError(a)
 
             # nombre del fichero
 #            try:
@@ -467,7 +465,7 @@ class Project(object):
         """
         st = f'{row[icod]}\t{tipo}\t{xts[0]}\t{xts[-1]}\t{xts.size:d}'
         if ixutm and iyutm:
-            st = st + f'\t{row[ixutm]:0.0f]}\t{row[iyutm]:0.0f]}'
+            st = st + f'\t{row[ixutm]:0.0f}\t{row[iyutm]:0.0f}'
         return st
 
 
@@ -501,7 +499,7 @@ class Project(object):
             return ts_related
 
         # puntos relacionados con cod_master
-        select = self.element_get('upper_relation/select').text.strip()
+        select = self.element_get(path_relation).text.strip()
         cur.execute(select, (cod_master,))
         related_points = [row_ur[0] for row_ur in cur]
 
@@ -533,7 +531,7 @@ class Project(object):
 
 
     @staticmethod
-    def date_in_where(dbtype: str, date1: str, sep: str='/'):
+    def date_in_where(dbtype: str, date1: date):
         """
         devuelva una fecha válida para usar en el where de la select que
             devuelve los datos
@@ -543,7 +541,7 @@ class Project(object):
         elif dbtype == 'sqlite':
             return date1.strftime('%Y-%m-%d')
         else:
-            raise ValueError(f'{dbtype} no es un tipo d bdd válido')
+            raise ValueError(f'{dbtype} no es un tipo válido de bdd')
 
 
     @staticmethod
@@ -563,6 +561,27 @@ class Project(object):
             raise ValueError(f'{dbtype} no es un tipo d bdd válido')
         return np.array(x_upper, dtype='datetime64'), y_upper
 
+
+    def title_get(self, path: str, row):
+        """
+        forma el título de un gráfico
+        args
+        path: path al elemento titul
+        row: es fila activa devuelta por select master, de donde se
+            va a extraer el título del gráfico
+        return
+            un str con el título del gráfico (puede tener más de una línea)
+        """
+        titles = self.element_get(path)
+        stitles = [title.text.strip() for title in titles]
+        for i, title in enumerate(titles):
+            cols = title.element_get('col')
+            if not cols:
+                stitles[i] = title.text.strip()
+                continue
+            subs = [row[int(col.text)-1] for col in cols]
+            stitles[i] = stitles[i].format(*subs)
+        return '\n'.join(stitles)
 
 
 # =========================================================================

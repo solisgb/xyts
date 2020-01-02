@@ -499,7 +499,8 @@ class GUI(tk.Frame):
         d1 = GUI.__str_to_date(self.lower_date.get())
         d2 = GUI.__str_to_date(self.upper_date.get())
         only_master = self.only_master.get()
-        counter = prj.xygraphs(dst, d1, d2, only_master)
+        only_upper_graph = self.upperPlotOnly.get()
+        counter = prj.xygraphs(dst, d1, d2, only_master, only_upper_graph)
         try:
             for n, m in counter:
                 self.icount.set(n)

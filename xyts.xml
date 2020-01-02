@@ -19,25 +19,23 @@
 		</graph>
 		<master>
 			<select>
-			<!--
 			SELECT ACUIFEROS.MASUBn, ACUIFEROS.NOMACU, IPA1.COD, IPA1.X_UTM, IPA1.Y_UTM, IPA1.TOPONIMIA
 			FROM (ACUIFEROS INNER JOIN IPA1 ON ACUIFEROS.COD_ACU = IPA1.ACUIFERO) INNER JOIN IPA1_RED_CONTROL ON IPA1.COD = IPA1_RED_CONTROL.codigo
 			WHERE IPA1_RED_CONTROL.red='CHSP19' AND IPA1_RED_CONTROL.fecha_baja Is Null
 			ORDER BY ACUIFEROS.MASUBn, ACUIFEROS.NOMACU, IPA1.COD;
-			-->
 			</select>
 			<col type='cod'>3</col>
 			<col type='xutm'>4</col>
 			<col type='yutm'>5</col>
-			<titul>
+			<title>
 				<text>Evolución de la cota piezométrica en el sondeo {}</text>
 				<col>3</col>
-			</titul>
-			<titul>
+			</title>
+			<title>
 				<text>MASub 070.{:03d}. Acuífero {}</text>
 				<col>1</col>
 				<col>2</col>
-			</titul>
+			</title>
 			<file>
 				<name>{:03d}_{}_{}</name>
 				<col>1</col>
@@ -45,20 +43,20 @@
 				<col>3</col>
 			</file>
 		</master>
-		<upper_serie>
+		<upper_ts>
 			<select>
 			SELECT IPA2.FECHA, IPA1.Z-IPA2.PNP AS CNP FROM IPA1 INNER JOIN IPA2 ON IPA1.COD=IPA2.COD WHERE IPA1.COD=? AND IPA2.FECHA&gt;=? AND IPA2.FECHA&lt;=? ORDER BY IPA2.FECHA;	
 			</select>
-		</upper_serie>
+		</upper_ts>
 		<upper_relation>
 			<select>SELECT COD2 FROM IPA1_SELF WHERE COD1=? AND ACTIVO=1 ORDER BY COD2;</select>
-			<select_distancia>SELECT X_UTM, Y_UTM FROM IPA1 WHERE COD=?;</select_distancia>
+			<select_location>SELECT X_UTM, Y_UTM FROM IPA1 WHERE COD=?;</select_location>
 		</upper_relation>
 		<lower_relation>
 			<select>SELECT nmasub FROM ipa1_masub WHERE dh=7 AND COD=?;</select>
 		</lower_relation>
-		<lower_serie> 
-			<select>SELECT IDINM, FECHA, P FROM P WHERE IDINM=? AND FECHA&gt;=? AND FECHA&lt;=? AND P&gt;0 ORDER BY FECHA"</select>
-		</lower_serie>
+		<lower_ts>
+			<select>SELECT fecha, valor FROM masub_pm_idw WHERE fid=? AND fecha&gt;=? AND fecha&lt;=? ORDER BY fecha;</select>
+		</lower_ts>
 	</project>
 </xyts>

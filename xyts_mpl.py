@@ -5,8 +5,10 @@ Created on Mon Jul 16 09:22:00 2018
 
 Serie temporal para gráficos con el módulo matplotlib
 
-version: 0.3
+version: 0.4
 """
+from datetime import date
+import numpy as np
 
 
 class Time_series():
@@ -41,6 +43,31 @@ class Time_series():
         self.marker = marker
         self.scatter = scatter
         self.linestyle = slinestyle
+
+
+def minmax_fechas(t_series: list, dbtype: str) -> list():
+    """
+    devuelve el mínimo y el máximo de cada elemento de t_series, que es
+        de tipo Time_series
+    args
+    t_series: lista en que cada elemento es un onjeto Time_series
+    dbtype: gestor de base de datos
+    output
+    fecha mínima y máxima de los elementos en t_series; el tipo de fecha se
+        ajusta según dbtype, de modo que el formato de fecha devuelto se
+        puede utilizar directamente como parámetros en una select
+    """
+    minmax = np.array([[l.fechas[0], l.fechas[-1]] for l in t_series],
+                      dtype='datetime64')
+    minmax = [np.min(minmax[:, 0]), np.max(minmax[:, 1])]
+    minmax = np.datetime_as_string(minmax, unit='D').tolist()
+    if dbtype == 'ms_access':
+        for i, item in enumerate(minmax):
+            a = item.split('-')
+            minmax[i] = date(int(a[0]), int(a[1]),int(a[2]))
+        return minmax
+    elif dbtype == 'sqlite':
+        return minmax
 
 
 def XYt_1(t_series: [], stitle: str, ylabel: str, dst: str):
