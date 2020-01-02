@@ -70,6 +70,12 @@ def minmax_fechas(t_series: list, dbtype: str) -> list():
         return minmax
 
 
+def xy_ts_plot(ts: [], stitle: str, ylabel: str, dst: str, ts2: list=[],
+               ylabel2: str='') -> None:
+        if not ts2:
+            XYt_1(ts, stitle, ylabel, dst)
+
+
 def XYt_1(t_series: [], stitle: str, ylabel: str, dst: str):
     """
     dibuja un gráfico xy de una o más series
