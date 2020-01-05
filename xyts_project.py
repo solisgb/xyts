@@ -280,9 +280,11 @@ class Project(object):
         f_summary = open(SUMMARY_FILE, 'w')
         f_summary.write(f'{st}')
 
+        if dbtype != 'ms_access':
+            date1 = date1.strftime('%YYYY-%mm-%dd')
+            date2 = date2.strftime('%YYYY-%mm-%dd')
+
         for i, row_dm in enumerate(data_master):
-            date1 = Project.date_in_where(dbtype, date1)
-            date2 = Project.date_in_where(dbtype, date2)
             select = self.element_get('upper_ts/select').text.strip()
             cur.execute(select, (row_dm[icod], date1, date2))
             x_upper, y_upper = Project.ts_get(dbtype, cur)
@@ -307,7 +309,10 @@ class Project(object):
                     ts = ts + upper_ts
 
             if only_upper_graph !=1:
-                min_date, max_date = minmax_fechas(ts, dbtype)
+                min_date, max_date = minmax_fechas(ts)
+                if dbtype == 'ms_access':
+                    min_date = Project.strfecha_2_date(min_date)
+                    max_date = Project.strfecha_2_date(max_date)
                 lower_ts = \
                 self.related_ts_get('lower_relation/select', cur, row_dm[icod],
                                     'lower_ts/select', min_date, max_date,
@@ -329,38 +334,13 @@ class Project(object):
                 st = format_exc()
                 logging.append(st, False)
                 messagebox.showerror(self.__module__, st)
+                return
 
         f_summary.close()
         con.close()
         messagebox.showinfo(self.__module__, 'Proceso finalizado')
 
-            # se graban los datos del gráfico
-#            if self.dataToFile.get() == 1:
-#                names = os.path.splitext(name_file)
-#                dst = os.path.join(dir_dst, names[0] + '.xml')  # ,
-#
-#            self.icount.set(self.icount.get() + 1)
-#            self.master.update()
-#
-#            if ini == 0 and self.pauseXY1.get() == 1:
-#                if not tk.messagebox.askyesno(self.__module__,
-#                                              "Se ha grabado el primer' +\
-#                                              ' gráfico\nDesea continuar?"):
-#                    break
-#
-#        if minmax is not None:
-#            strminmax = ['{0:d}/{1:d}/{2:d}'.format(dt1.day, dt1.month,
-#                         dt1.year) for dt1 in minmax]
-
-#        # grabar_localizaciones
-#        if self.grabar_localizaciones.get() == 1:
-#            n = len(cod_master) + len(cod_upper) + len(cod_lower)
-#            self.ngraf.set(n)
-#            self.icount.set(0)
-#            ic=0
-#            f = open(os.path.join(dir_dst,
-#                                  User_interface.__file_locations), 'w')
-#
+        # se graban los datos del gráfico
 
 
     def line_to_summary(self, tipo: str, row: list, xts: np.ndarray,
@@ -443,17 +423,9 @@ class Project(object):
 
 
     @staticmethod
-    def date_in_where(dbtype: str, date1: date):
-        """
-        devuelva una fecha válida para usar en el where de la select que
-            devuelve los datos
-        """
-        if dbtype == 'ms_access':
-            return date1
-        elif dbtype == 'sqlite':
-            return date1.strftime('%Y-%m-%d')
-        else:
-            raise ValueError(f'{dbtype} no es un tipo válido de bdd')
+    def strfecha_2_date(strfecha: str, sep: str='-'):
+        a = strfecha.split(sep)
+        return date(int(a[0]), int(a[1]),int(a[2]))
 
 
     @staticmethod
