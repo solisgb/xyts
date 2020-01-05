@@ -23,131 +23,100 @@ class GUI(tk.Frame):
         """
         Se dibula la gui
         """
+        # nombre del fichero xml con la definición de los projectos
+        self.fname = FILE_PROJECTS
+        # lista de objetos Project en el fichero xyts_gui.FILE_PROJECTS
+        self.projects = []
+        # índice del proyecto seleccionado en self.projects
+        self.selected_project: int = TKINTNULL
+        # nombre del proyecto seleccionado
+        self.selected_project_show = tk.StringVar()
+        # directorio de resultados
+        self.path_out = tk.StringVar()
+        # indicador del número de gráfico grabados
+        self.icount = tk.IntVar(value=0)
+        # número total de gráficos potenciales en el proyecto
+        self.ngraf = tk.IntVar(value=0)
+        # indicador de grabar los datos representados [0, 1]
+        self.dataToFile = tk.IntVar(value=1)
+        # indicador de grabar solo el primer gráfico
+        self.only_master = tk.IntVar()
+        # indicador de grabar solo el gráfico superior
+        self.upperPlotOnly = tk.IntVar()
+        # indicador de grabar el fichero de localizaciones de los puntos
+        self.grabar_localizaciones = tk.IntVar()
+        # fecha inicial en las select
+        self.lower_date = tk.StringVar()
+        # fecha final en las select
+        self.upper_date = tk.StringVar()
+        # pausar la ejecución en el gráfico número n
+        self.stop_from_graph = tk.IntVar(value=0)
+        # siguiente pausa cada m gráficos
+        self.stop_graph_step = tk.IntVar(value=0)
+        # elemento tkinter root
+        self.master = master
+
         try:
-            # geometría
-            self.master = master
-            self.master.title(TITLE_WINDOW)
-            self.master.geometry(f'{WIDTH:d}x{HEIGHT:d}+' +\
-                                 f'{XOFFSET:d}+{YOFFSET:d}')
-            self.master.maxsize(WIDTH, HEIGHT)
-            self.master.protocol('WM_DELETE_WINDOW', self.__exitMethod)
-
-            self.fname = FILE_PROJECTS
-
-            # variables específicas
-            # lista de objetos Project en el fichero xyts_gui.FILE_PROJECTS
-            self.projects = []
-            # índice del proyecto seleccionado en self.projects
-            self.selected_project: int = TKINTNULL
-            # nombre del proyecto seleccionado
-            self.selected_project_show = tk.StringVar()
-            # directorio de resultados
-            self.path_out = tk.StringVar()
-            # indicador del número de gráfico grabados
-            self.icount = tk.IntVar()
-            # número total de gráficos potenciales en el proyecto
-            self.ngraf = tk.IntVar()
-            # indicador de grabar los datos representados [0, 1]
-            self.dataToFile = tk.IntVar(value=1)
-            # indicador de grabar solo el primer gráfico
-            self.only_master = tk.IntVar()
-            # indicador de grabar solo el gráfico superior
-            self.upperPlotOnly = tk.IntVar()
-            # indicador de grabar el fichero de localizaciones de los puntos
-            self.grabar_localizaciones = tk.IntVar()
-            # fecha inicial en las select
-            self.lower_date = tk.StringVar()
-            # fecha final en las select
-            self.upper_date = tk.StringVar()
-            # pausar la ejecución en el gráfico número n
-            self.stop_from_graph = tk.IntVar(value=0)
-            # siguiente pausa cada m gráficos
-            self.stop_graph_step = tk.IntVar(value=0)
-
-            self.__read_last_action()
-
-            # widgets
-            self.__cuerpo_put()
-            self.__action_buttons_put()
+            self.read_last_action()
+            self.master_geometry()
+            self.widgets_draw()
             self.master.mainloop()
-
         except:
             a = format_exc()
             logging.append(a, toScreen=False)
-            tk.messagebox.showerror(self.__module__, a)
-            self.__exitMethod()
+            tk.messagebox.showerror('Error', a)
+            self.exit_gui()
 
 
-    def __cuerpo_put(self):
+    def master_geometry(self):
+        """
+        geometría del elemento root
+        """
+        self.master.title(TITLE_WINDOW)
+        self.master.geometry(f'{WIDTH:d}x{HEIGHT:d}+' +\
+                             f'{XOFFSET:d}+{YOFFSET:d}')
+        self.master.maxsize(WIDTH, HEIGHT)
+        self.master.protocol('WM_DELETE_WINDOW', self.exit_gui)
+
+
+    def widgets_draw(self):
+        """
+        dibuja las widgets
+        """
+#        tk.Label(self.master, text= 'Proyectos', relief=tk.GROOVE, pady=2) \
+#        .pack(side=tk.TOP, anchor=tk.CENTER, fill=tk.X, expand=tk.NO)
+        self.show_selected_project()
+        self.list_box_projects()
+        self.select_project_buttons()
+        self.entry_dates()
+
+        self.more_widgets()
+
+        self.action_buttons_draw()
+
+
+    def more_widgets(self):
         """
         lee el fichero xyts.xml y muestra la lista de proyectos disponibles
+        TO BE REFACTORED
         """
-
         # nuevo grupo de widgets
         frm_g0 = tk.Frame(self.master, borderwidth=2, relief=tk.GROOVE, pady=3)
 
-        frm_01 = tk.Frame(frm_g0)
-        tk.Label(frm_01, text= 'Proyectos', pady=5) \
-        .pack(side=tk.TOP, anchor=tk.CENTER)
-        frm_01.pack(side=tk.TOP, anchor=tk.CENTER, fill=tk.X, expand=tk.NO)
-
-        # list box para proyectos disponibles
-        frm_01 = tk.Frame(frm_g0,borderwidth=2, relief=tk.SUNKEN)
-        v_scrollbar_05_01 = tk.Scrollbar(frm_01, orient=tk.VERTICAL)
-        self.listbox_05_01 = tk.Listbox(frm_01,selectmode=tk.BROWSE,
-                yscrollcommand=v_scrollbar_05_01.set,
-                width=45, height=9)
-        self.__cargar_lista_proyectos_en_listbox()
-        self.listbox_05_01.pack(side=tk.LEFT, fill=tk.X, expand=1)
-        self.listbox_05_01.bind("<Button-3>", self.__ver_proyecto)
-        v_scrollbar_05_01.pack(side=tk.RIGHT, fill=tk.Y)
-        v_scrollbar_05_01.config(command=self.listbox_05_01.yview)
-        frm_01.pack(side=tk.TOP, anchor=tk.W, fill=tk.X, expand=tk.NO)
-
-        frm_01 = tk.Frame(frm_g0)
-        h_scrollbar_07_01 = tk.Scrollbar(frm_01, orient=tk.HORIZONTAL)
-        h_scrollbar_07_01.pack(side=tk.TOP, fill=tk.X)
-        h_scrollbar_07_01.config(command=self.listbox_05_01.xview)
-        frm_01.pack(side=tk.TOP, anchor=tk.W, fill=tk.X, expand=tk.NO)
-
-        frm_g0.pack(side=tk.TOP, anchor=tk.W, fill=tk.BOTH, expand=tk.YES)
-
-        frm_01 = tk.Frame(self.master,borderwidth=2)
-        tk.Button(frm_01, text="Seleccionar", padx=5, pady=2,
-                  command=self.__select_project) \
-                  .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X, padx=1)
-        tk.Button(frm_01, text="Ver selección", padx=5, pady=2,
-                  command=self.__ver_proyecto) \
-                  .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X, padx=1)
-        tk.Button(frm_01, text="Quitar selección", padx=5, pady=2,
-                  command=self.__deSelectProyecto) \
-                  .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X, padx=1)
-        frm_01.pack(side=tk.TOP, anchor=tk.W, fill=tk.X, expand=tk.NO)
-
-        # nuevo grupo de widgets
-        frm_g0 = tk.Frame(self.master, borderwidth=2, relief=tk.GROOVE, pady=3)
-
-        frm_10 = tk.Frame(frm_g0)
-        tk.Label(frm_10, text = "Projecto seleccionado: ", pady=2) \
-            .pack(side=tk.LEFT, anchor=tk.W)
-        tk.Label(frm_10, textvariable = self.selected_project_show, pady=2) \
-            .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
-        frm_10.pack(side=tk.TOP, anchor=tk.W, expand=tk.NO)
-
-        frm_10 = tk.Frame(frm_g0)
-        tk.Label(frm_10,
-                 text = "Rango de fechas. Fecha inferior",
-                 pady=2).pack(side=tk.LEFT, anchor=tk.W)
-        self.edlb=tk.Entry(frm_10,textvariable=self.lower_date, width=10,
-                           state=tk.DISABLED).pack(side=tk.LEFT)
-        tk.Label(frm_10, text = "Fecha superior", pady=2) \
-            .pack(side=tk.LEFT, anchor=tk.W)
-        self.edub = tk.Entry(frm_10,textvariable=self.upper_date, width=10,
-                             state=tk.DISABLED).pack(side=tk.LEFT)
-        tk.Button(frm_10,text="Validar", padx=1, pady=1,
-                  command=self.validar_lub_date) \
-                  .pack(side=tk.LEFT,anchor=tk.W, padx=4)
-        frm_10.pack(side=tk.TOP, anchor=tk.W, expand=tk.NO)
+#        frm_10 = tk.Frame(frm_g0)
+#        tk.Label(frm_10,
+#                 text = "Rango de fechas. Fecha inferior",
+#                 pady=2).pack(side=tk.LEFT, anchor=tk.W)
+#        self.edlb=tk.Entry(frm_10,textvariable=self.lower_date, width=10,
+#                           state=tk.DISABLED).pack(side=tk.LEFT)
+#        tk.Label(frm_10, text = "Fecha superior", pady=2) \
+#            .pack(side=tk.LEFT, anchor=tk.W)
+#        self.edub = tk.Entry(frm_10,textvariable=self.upper_date, width=10,
+#                             state=tk.DISABLED).pack(side=tk.LEFT)
+#        tk.Button(frm_10,text="Validar", padx=1, pady=1,
+#                  command=self.validar_lub_date) \
+#                  .pack(side=tk.LEFT,anchor=tk.W, padx=4)
+#        frm_10.pack(side=tk.TOP, anchor=tk.W, expand=tk.NO)
 
         frm_10 = tk.Frame(frm_g0)
         self.ckb1=tk.Checkbutton(frm_10,
@@ -201,19 +170,90 @@ class GUI(tk.Frame):
         frm_g0.pack(side=tk.TOP, anchor=tk.W, fill=tk.BOTH, expand=tk.YES)
 
 
-    def __action_buttons_put(self):
+    def show_selected_project(self):
+        """
+        muestra el proyecto seleccionado
+        """
+        frm_10 = tk.Frame(self.master)
+        tk.Label(frm_10, text = "Projectos -> seleccionado: ", pady=2) \
+            .pack(side=tk.LEFT, anchor=tk.W)
+        tk.Label(frm_10, textvariable = self.selected_project_show, pady=2) \
+            .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
+        frm_10.pack(side=tk.TOP, anchor=tk.W, expand=tk.NO)
+
+
+    def list_box_projects(self):
+        """
+        listbox con los projectos
+        """
+        frm_01 = tk.Frame(self.master, borderwidth=2, pady=2)
+        v_scrollbar = tk.Scrollbar(frm_01, orient=tk.VERTICAL)
+        self.lb_prjs = tk.Listbox(frm_01,selectmode=tk.BROWSE,
+                                  yscrollcommand=v_scrollbar.set,
+                                  width=45, height=9)
+        self.__cargar_lista_proyectos_en_listbox()
+        self.lb_prjs.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
+        self.lb_prjs.bind("<Button-3>", self.__ver_proyecto)
+        v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        v_scrollbar.config(command=self.lb_prjs.yview)
+        frm_01.pack(side=tk.TOP, anchor=tk.W, fill=tk.X, expand=tk.NO)
+        frm_01 = tk.Frame(self.master, borderwidth=2, pady=2)
+        h_scrollbar = tk.Scrollbar(frm_01, orient=tk.HORIZONTAL)
+        h_scrollbar.pack(side=tk.TOP, fill=tk.X)
+        h_scrollbar.config(command=self.lb_prjs.xview)
+        frm_01.pack(side=tk.TOP, anchor=tk.W, fill=tk.BOTH, expand=tk.NO)
+
+
+    def select_project_buttons(self):
+        """
+        botones para seleccionar un proyecto, visualizarlo y deseleccionarlo
+        """
+        frm_01 = tk.Frame(self.master, borderwidth=2, pady=2)
+        tk.Button(frm_01, text="Seleccionar", padx=5, pady=2,
+                  command=self.select_project) \
+                  .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X, padx=1)
+        tk.Button(frm_01, text="Ver selección", padx=5, pady=2,
+                  command=self.__ver_proyecto) \
+                  .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X, padx=1)
+        tk.Button(frm_01, text="Quitar selección", padx=5, pady=2,
+                  command=self.remove_selected_project) \
+                  .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X, padx=1)
+        frm_01.pack(side=tk.TOP, anchor=tk.W, fill=tk.X, expand=tk.NO)
+
+
+    def entry_dates(self):
+        """
+        Entry dates and validation button
+        """
+        frm_10 = tk.Frame(self.master, borderwidth=2, pady=2)
+        tk.Label(frm_10,
+                 text = "Rango de fechas. Fecha inferior",
+                 pady=2).pack(side=tk.LEFT, anchor=tk.W)
+        self.edlb=tk.Entry(frm_10,textvariable=self.lower_date, width=10,
+                           state=tk.DISABLED).pack(side=tk.LEFT)
+        tk.Label(frm_10, text="Fecha superior", pady=2) \
+        .pack(side=tk.LEFT, anchor=tk.W)
+        self.edub = tk.Entry(frm_10,textvariable=self.upper_date, width=10,
+                             state=tk.DISABLED).pack(side=tk.LEFT)
+        tk.Button(frm_10,text="Validar", padx=1, pady=1,
+                  command=self.validar_lub_date) \
+                  .pack(side=tk.LEFT,anchor=tk.W, padx=4)
+        frm_10.pack(side=tk.TOP, anchor=tk.W, expand=tk.NO)
+
+
+    def action_buttons_draw(self):
         """
         Opciones de ejecución y resultados
         """
-        frm_08 = tk.Frame(self.master,borderwidth=2)
+        frm_08 = tk.Frame(self.master, borderwidth=2)
         tk.Button(frm_08, text="Ejecutar", padx=5, pady=2,
                   command=self.__do_graphs) \
                   .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X, padx=1)
         tk.Button(frm_08, text="Finalizar", padx=5, pady=2,
-                  command=self.__exitMethod) \
+                  command=self.exit_gui) \
                   .pack(side=tk.RIGHT , anchor=tk.W, fill=tk.X, padx=1)
         tk.Button(frm_08, text="Ayuda", padx=5, pady=2,
-                  command=self.__helpMenu) \
+                  command=self.help_window) \
                   .pack(side=tk.RIGHT , anchor=tk.W, fill=tk.X, padx=1)
         tk.Button(frm_08, text="Ver log", padx=5, pady=2,
                   command=self.show_log_file) \
@@ -250,7 +290,7 @@ class GUI(tk.Frame):
         return date(int(a[2]), int(a[1]), int(a[0]))
 
 
-    def __insert_last_action(self):
+    def insert_last_action(self):
         """
         Escribe parámetros seleccionados de la ejecución a la salida del
             programa
@@ -300,10 +340,12 @@ class GUI(tk.Frame):
         return
 
 
-    def __read_last_action(self):
+    def read_last_action(self):
         """
-        Escribe parámetros seleccionados de la ejecución a la salida del
-            programa
+        Abre el fichero FILE_HISTORY y lee las columnas path_out, lower_date,
+            y upper_date de la última ejecución; con estas columnas se
+            rellenan las propiedades self.path_out, self.lower_date y
+            self.upper_date
         """
         import sqlite3
 
@@ -335,17 +377,17 @@ class GUI(tk.Frame):
         self.upper_date.set(upper_date)
 
 
-    def __exitMethod(self):
+    def exit_gui(self):
         """
         acciones cuando abandono la gui
         """
-        self.__insert_last_action()
+        self.insert_last_action()
         self.master.destroy()
 
 
-    def __helpMenu(self):
+    def help_window(self):
         """
-        lee el fichero de ayuda
+        lee el fichero de ayuda y abre una ventana con su contenido
         """
         from io import StringIO
         lines = StringIO()
@@ -360,7 +402,7 @@ class GUI(tk.Frame):
             lines.write(f'Error al leer {FILE_HELP}')
 
         contents=lines.getvalue()
-        Child_show_text(self.master,contents,'Ayuda')
+        Child_show_text(self.master, contents, 'Ayuda')
 
 
     def show_log_file(self):
@@ -405,19 +447,18 @@ class GUI(tk.Frame):
         self.projects=Project.read_projects()
         if not self.projects:
             return
-        if self.listbox_05_01.size() > 0:
-            self.listbox_05_01.delete(0, tk.END)
+        if self.lb_prjs.size() > 0:
+            self.lb_prjs.delete(0, tk.END)
         for project in self.projects:
-            self.listbox_05_01.insert(tk.END, '{}' \
-                                      .format(project.name_get()))
+            self.lb_prjs.insert(tk.END, '{}'.format(project.name_get()))
 
 
-    def __select_project(self):
+    def select_project(self):
         """
         selecciona un projecto de la lista y activa widgets según contenido
         """
         from os.path import isfile
-        items = list(map(int, self.listbox_05_01.curselection()))
+        items = list(map(int, self.lb_prjs.curselection()))
         if not items:
             return
         db = self.projects[items[0]].element_get('db').text.strip()
@@ -433,7 +474,7 @@ class GUI(tk.Frame):
         self.selected_project_show.set(n*' ')
         self.selected_project_show.set(self.projects[self.selected_project] \
                                        .name_get())
-        self.listbox_05_01.selection_clear(0, tk.END)
+        self.lb_prjs.selection_clear(0, tk.END)
 
         if self.projects[self.selected_project] \
                .exists_element('upper_relation'):
@@ -460,15 +501,17 @@ class GUI(tk.Frame):
         Child_show_text(self.master, xml_str, 'Proyecto seleccionado')
 
 
-    def __deSelectProyecto(self):
+    def remove_selected_project(self):
         """
         deselecciona un projecto previamente seleccionado
         """
         self.ckb1.config(state='disabled')
         self.ckb2.config(state='disabled')
-        self.edub.config(state='disabled')
-        self.edlb.config(state='disabled')
-        self.listbox_05_01.selection_clear(0, tk.END)
+        if self.edub:
+            self.edub.config(state='disabled')
+        if self.edlb:
+            self.edlb.config(state='disabled')
+        self.lb_prjs.selection_clear(0, tk.END)
         self.selected_project = TKINTNULL
         i = len(self.selected_project_show.get())
         self.selected_project_show.set(i*' ')

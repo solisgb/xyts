@@ -5,7 +5,8 @@ from math import sqrt
 from tkinter import messagebox
 import xml.etree.ElementTree as ET
 import littleLogging as logging
-from xyts_mpl import Time_series, minmax_fechas, xy_ts_plot
+from xyts_mpl import Time_series
+from xyts_mpl import Plot_time_series as plot_ts
 
 # Tipos de bases de datos soportadas =========================================
 dbtypes = ('ms_access', 'sqlite')
@@ -309,7 +310,7 @@ class Project(object):
                     ts = ts + upper_ts
 
             if only_upper_graph !=1:
-                min_date, max_date = minmax_fechas(ts)
+                min_date, max_date = Time_series.minmax_fechas(ts)
                 if dbtype == 'ms_access':
                     min_date = Project.strfecha_2_date(min_date)
                     max_date = Project.strfecha_2_date(max_date)
@@ -327,7 +328,7 @@ class Project(object):
             ylabels = self.y_axis_names_get()
 
             try:
-                xy_ts_plot(ts, title, ylabels[0], dst, lower_ts, ylabels[1])
+                _ = plot_ts(title, ts, ylabels[0], dst, lower_ts, ylabels[1])
                 yield(i+1, len(data_master))
             except Exception:
                 from traceback import format_exc
