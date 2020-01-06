@@ -40,11 +40,11 @@ class GUI(tk.Frame):
         # indicador de grabar los datos representados [0, 1]
         self.dataToFile = tk.IntVar(value=1)
         # indicador de grabar solo el primer gráfico
-        self.only_master = tk.IntVar()
+        self.only_master = tk.IntVar(value=0)
         # indicador de grabar solo el gráfico superior
-        self.upperPlotOnly = tk.IntVar()
+        self.upperPlotOnly = tk.IntVar(value=0)
         # indicador de grabar el fichero de localizaciones de los puntos
-        self.grabar_localizaciones = tk.IntVar()
+        self.grabar_localizaciones = tk.IntVar(value=1)
         # fecha inicial en las select
         self.lower_date = tk.StringVar()
         # fecha final en las select
@@ -59,7 +59,7 @@ class GUI(tk.Frame):
         try:
             self.read_last_action()
             self.master_geometry()
-            self.widgets_draw()
+            self.widgets_set()
             self.master.mainloop()
         except:
             a = format_exc()
@@ -79,192 +79,185 @@ class GUI(tk.Frame):
         self.master.protocol('WM_DELETE_WINDOW', self.exit_gui)
 
 
-    def widgets_draw(self):
+    def widgets_set(self):
         """
         dibuja las widgets
         """
-#        tk.Label(self.master, text= 'Proyectos', relief=tk.GROOVE, pady=2) \
-#        .pack(side=tk.TOP, anchor=tk.CENTER, fill=tk.X, expand=tk.NO)
         self.show_selected_project()
         self.list_box_projects()
         self.select_project_buttons()
         self.entry_dates()
-
-        self.more_widgets()
-
-        self.action_buttons_draw()
-
-
-    def more_widgets(self):
-        """
-        lee el fichero xyts.xml y muestra la lista de proyectos disponibles
-        TO BE REFACTORED
-        """
-        # nuevo grupo de widgets
-        frm_g0 = tk.Frame(self.master, borderwidth=2, relief=tk.GROOVE, pady=3)
-
-#        frm_10 = tk.Frame(frm_g0)
-#        tk.Label(frm_10,
-#                 text = "Rango de fechas. Fecha inferior",
-#                 pady=2).pack(side=tk.LEFT, anchor=tk.W)
-#        self.edlb=tk.Entry(frm_10,textvariable=self.lower_date, width=10,
-#                           state=tk.DISABLED).pack(side=tk.LEFT)
-#        tk.Label(frm_10, text = "Fecha superior", pady=2) \
-#            .pack(side=tk.LEFT, anchor=tk.W)
-#        self.edub = tk.Entry(frm_10,textvariable=self.upper_date, width=10,
-#                             state=tk.DISABLED).pack(side=tk.LEFT)
-#        tk.Button(frm_10,text="Validar", padx=1, pady=1,
-#                  command=self.validar_lub_date) \
-#                  .pack(side=tk.LEFT,anchor=tk.W, padx=4)
-#        frm_10.pack(side=tk.TOP, anchor=tk.W, expand=tk.NO)
-
-        frm_10 = tk.Frame(frm_g0)
-        self.ckb1=tk.Checkbutton(frm_10,
-                                 text="Gráfico superior, solo serie principal",
-                                 variable=self.only_master, pady=2,
-                                 state=tk.DISABLED)
-        self.ckb1.pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
-        self.ckb2=tk.Checkbutton(frm_10, text="Gráfico inferior deshabilitado",
-                                 variable=self.upperPlotOnly, pady=2,
-                                 state=tk.DISABLED)
-        self.ckb2.pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
-        self.ckb3=tk.Checkbutton(frm_10, text="Grabar datos",
-                                 variable=self.dataToFile) \
-                                 .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
-        frm_10.pack(side=tk.TOP, anchor=tk.W, expand=tk.NO)
-
-        frm_10 = tk.Frame(frm_g0)
-        tk.Label(frm_10,
-                 text = "Pausar desde gráfico número",
-                 pady=2).pack(side=tk.LEFT, anchor=tk.W)
-        tk.Entry(frm_10,textvariable=self.stop_from_graph,
-                 width=5, justify=tk.RIGHT).pack(side=tk.LEFT)
-        tk.Label(frm_10, text = "Pausar cada", pady=2) \
-            .pack(side=tk.LEFT, anchor=tk.W)
-        tk.Entry(frm_10,textvariable=self.stop_graph_step,
-                 width=10, justify=tk.RIGHT).pack(side=tk.LEFT)
-        frm_10.pack(side=tk.TOP, anchor=tk.W, expand=tk.NO)
-
-        frm_g0.pack(side=tk.TOP, anchor=tk.W, fill=tk.BOTH, expand=tk.YES)
-
-        # nuevo grupo de widgets
-        frm_g0 = tk.Frame(self.master, borderwidth=1, relief=tk.GROOVE,
-                           pady=2)
-        tk.Button(frm_g0, text="Grabar en", padx=1, pady=2,
-                  command=self.output_dir_set).pack(side=tk.LEFT)
-        tk.Entry(frm_g0, textvariable=self.path_out, width=98) \
-        .pack(side=tk.LEFT, expand=tk.YES, pady=2)
-        frm_g0.pack(side=tk.TOP, anchor=tk.W, fill=tk.BOTH, expand=tk.YES)
-
-        frm_g0 = tk.Frame(self.master, borderwidth=2, relief=tk.GROOVE, pady=3)
-        frm_10 = tk.Frame(frm_g0)
-        tk.Label(frm_10, text = "En ejecución:", pady=2) \
-            .pack(side=tk.LEFT, anchor=tk.W)
-        tk.Label(frm_10, textvariable = self.icount, pady=2) \
-            .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
-        tk.Label(frm_10, text = '/',pady=2) \
-            .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
-        tk.Label(frm_10, textvariable = self.ngraf, padx=8, pady=2) \
-            .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
-        frm_10.pack(side=tk.TOP, anchor=tk.W, expand=tk.NO)
-        frm_g0.pack(side=tk.TOP, anchor=tk.W, fill=tk.BOTH, expand=tk.YES)
+        self.control_series_in_graphs()
+        self.stop_graphs_at_number()
+        self.select_dir_output()
+        self.show_graphs_progress()
+        self.execute_buttons()
 
 
     def show_selected_project(self):
         """
         muestra el proyecto seleccionado
         """
-        frm_10 = tk.Frame(self.master)
-        tk.Label(frm_10, text = "Projectos -> seleccionado: ", pady=2) \
-            .pack(side=tk.LEFT, anchor=tk.W)
-        tk.Label(frm_10, textvariable = self.selected_project_show, pady=2) \
-            .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
-        frm_10.pack(side=tk.TOP, anchor=tk.W, expand=tk.NO)
+        frm1 = tk.Frame(self.master, relief=tk.GROOVE, pady=2)
+        tk.Label(frm1, text = "Projectos -> seleccionado: ") \
+        .pack(side=tk.LEFT, anchor=tk.W)
+        tk.Label(frm1, textvariable = self.selected_project_show) \
+        .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
+        frm1.pack(side=tk.TOP, anchor=tk.W, fill=tk.X, expand=tk.YES)
 
 
     def list_box_projects(self):
         """
         listbox con los projectos
         """
-        frm_01 = tk.Frame(self.master, borderwidth=2, pady=2)
-        v_scrollbar = tk.Scrollbar(frm_01, orient=tk.VERTICAL)
-        self.lb_prjs = tk.Listbox(frm_01,selectmode=tk.BROWSE,
+        frm1 = tk.Frame(self.master, relief=tk.GROOVE, borderwidth=2, pady=2)
+        v_scrollbar = tk.Scrollbar(frm1, relief=tk.RAISED, orient=tk.VERTICAL)
+        self.lb_prjs = tk.Listbox(frm1,selectmode=tk.BROWSE,
                                   yscrollcommand=v_scrollbar.set,
-                                  width=45, height=9)
-        self.__cargar_lista_proyectos_en_listbox()
-        self.lb_prjs.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
-        self.lb_prjs.bind("<Button-3>", self.__ver_proyecto)
+                                  width=45, height=11)
+        self.projects_in_listbox_set()
+        self.lb_prjs.pack(side=tk.LEFT, fill=tk.BOTH, expand=tk.YES)
+        self.lb_prjs.bind("<Button-3>", self.project_show)
         v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         v_scrollbar.config(command=self.lb_prjs.yview)
-        frm_01.pack(side=tk.TOP, anchor=tk.W, fill=tk.X, expand=tk.NO)
-        frm_01 = tk.Frame(self.master, borderwidth=2, pady=2)
-        h_scrollbar = tk.Scrollbar(frm_01, orient=tk.HORIZONTAL)
-        h_scrollbar.pack(side=tk.TOP, fill=tk.X)
+        frm1.pack(side=tk.TOP, anchor=tk.W, fill=tk.X, expand=tk.NO)
+        frm1 = tk.Frame(self.master, borderwidth=2, pady=2)
+        h_scrollbar = tk.Scrollbar(frm1, relief=tk.RAISED,
+                                   orient=tk.HORIZONTAL)
+        h_scrollbar.pack(side=tk.TOP, fill=tk.X, expand=tk.NO)
         h_scrollbar.config(command=self.lb_prjs.xview)
-        frm_01.pack(side=tk.TOP, anchor=tk.W, fill=tk.BOTH, expand=tk.NO)
+        frm1.pack(side=tk.TOP, anchor=tk.W, fill=tk.BOTH, expand=tk.YES)
 
 
     def select_project_buttons(self):
         """
         botones para seleccionar un proyecto, visualizarlo y deseleccionarlo
         """
-        frm_01 = tk.Frame(self.master, borderwidth=2, pady=2)
-        tk.Button(frm_01, text="Seleccionar", padx=5, pady=2,
-                  command=self.select_project) \
+        frm1 = tk.Frame(self.master, relief=tk.GROOVE, borderwidth=2, pady=2)
+        tk.Button(frm1, text="Seleccionar", padx=5, pady=2,
+                  command=self.select_project, relief=tk.RIDGE) \
                   .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X, padx=1)
-        tk.Button(frm_01, text="Ver selección", padx=5, pady=2,
-                  command=self.__ver_proyecto) \
+        tk.Button(frm1, text="Ver selección", padx=5, pady=2,
+                  command=self.project_show, relief=tk.RIDGE) \
                   .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X, padx=1)
-        tk.Button(frm_01, text="Quitar selección", padx=5, pady=2,
-                  command=self.remove_selected_project) \
+        tk.Button(frm1, text="Quitar selección", padx=5, pady=2,
+                  command=self.remove_selected_project, relief=tk.RIDGE) \
                   .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X, padx=1)
-        frm_01.pack(side=tk.TOP, anchor=tk.W, fill=tk.X, expand=tk.NO)
+        frm1.pack(side=tk.TOP, anchor=tk.W, fill=tk.X, expand=tk.NO)
 
 
     def entry_dates(self):
         """
         Entry dates and validation button
         """
-        frm_10 = tk.Frame(self.master, borderwidth=2, pady=2)
-        tk.Label(frm_10,
+        frm1 = tk.Frame(self.master, borderwidth=2, pady=2)
+        tk.Label(frm1,
                  text = "Rango de fechas. Fecha inferior",
                  pady=2).pack(side=tk.LEFT, anchor=tk.W)
-        self.edlb=tk.Entry(frm_10,textvariable=self.lower_date, width=10,
-                           state=tk.DISABLED).pack(side=tk.LEFT)
-        tk.Label(frm_10, text="Fecha superior", pady=2) \
+        self.edlb=tk.Entry(frm1, textvariable=self.lower_date, width=12,
+                           justify=tk.RIGHT).pack(side=tk.LEFT)
+        tk.Label(frm1, text="Fecha superior", pady=2) \
         .pack(side=tk.LEFT, anchor=tk.W)
-        self.edub = tk.Entry(frm_10,textvariable=self.upper_date, width=10,
-                             state=tk.DISABLED).pack(side=tk.LEFT)
-        tk.Button(frm_10,text="Validar", padx=1, pady=1,
-                  command=self.validar_lub_date) \
-                  .pack(side=tk.LEFT,anchor=tk.W, padx=4)
-        frm_10.pack(side=tk.TOP, anchor=tk.W, expand=tk.NO)
+        self.edub = tk.Entry(frm1, textvariable=self.upper_date, width=12,
+                             justify=tk.RIGHT).pack(side=tk.LEFT)
+        tk.Button(frm1, text="Validar", padx=1, pady=1,
+                  command=self.validate_dates, relief=tk.RIDGE) \
+        .pack(side=tk.LEFT, anchor=tk.W, padx=4)
+        frm1.pack(side=tk.TOP, anchor=tk.W, expand=tk.NO)
 
 
-    def action_buttons_draw(self):
+    def control_series_in_graphs(self):
         """
-        Opciones de ejecución y resultados
+        Controla las series que se van a representar
         """
-        frm_08 = tk.Frame(self.master, borderwidth=2)
-        tk.Button(frm_08, text="Ejecutar", padx=5, pady=2,
-                  command=self.__do_graphs) \
-                  .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X, padx=1)
-        tk.Button(frm_08, text="Finalizar", padx=5, pady=2,
-                  command=self.exit_gui) \
-                  .pack(side=tk.RIGHT , anchor=tk.W, fill=tk.X, padx=1)
-        tk.Button(frm_08, text="Ayuda", padx=5, pady=2,
-                  command=self.help_window) \
-                  .pack(side=tk.RIGHT , anchor=tk.W, fill=tk.X, padx=1)
-        tk.Button(frm_08, text="Ver log", padx=5, pady=2,
-                  command=self.show_log_file) \
-                  .pack(side=tk.RIGHT, anchor=tk.W, fill=tk.X, padx=1)
-        frm_08.pack(side=tk.TOP, anchor=tk.W, fill=tk.X, expand=tk.NO)
+        frm1 = tk.Frame(self.master)
+        self.ckb1=tk.Checkbutton(frm1,
+                                 text="Gráfico superior, solo serie principal",
+                                 variable=self.only_master, pady=2,
+                                 state=tk.DISABLED)
+        self.ckb1.pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
+        self.ckb2=tk.Checkbutton(frm1,
+                                 text="Gráfico inferior deshabilitado",
+                                 variable=self.upperPlotOnly, pady=2,
+                                 state=tk.DISABLED)
+        self.ckb2.pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
+        self.ckb3=tk.Checkbutton(frm1, text="Grabar datos",
+                                 variable=self.dataToFile) \
+                                 .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
+        frm1.pack(side=tk.TOP, anchor=tk.W, expand=tk.NO)
+
+
+    def stop_graphs_at_number(self):
+        """
+        Pausa la grabación de los gráficos según los valores de
+            stop_from_graph y stop_graph_step
+        """
+        frm1 = tk.Frame(self.master)
+        tk.Label(frm1,
+                 text = "Pausar desde gráfico número",
+                 pady=2).pack(side=tk.LEFT, anchor=tk.W)
+        tk.Entry(frm1,textvariable=self.stop_from_graph,
+                 width=5, justify=tk.RIGHT).pack(side=tk.LEFT)
+        tk.Label(frm1, text = "Pausar cada", pady=2) \
+            .pack(side=tk.LEFT, anchor=tk.W)
+        tk.Entry(frm1,textvariable=self.stop_graph_step,
+                 width=10, justify=tk.RIGHT).pack(side=tk.LEFT)
+        frm1.pack(side=tk.TOP, anchor=tk.W, expand=tk.NO)
+
+
+    def select_dir_output(self):
+        """
+        Se selecciona el directorio deonde se graban los gráficos
+        """
+        frm1 = tk.Frame(self.master, borderwidth=2, relief=tk.GROOVE, pady=2)
+        tk.Button(frm1, text="Grabar en", padx=1, pady=2, relief=tk.RIDGE,
+                  command=self.output_dir_set).pack(side=tk.LEFT, expand=tk.NO)
+        tk.Entry(frm1, textvariable=self.path_out, width=98) \
+        .pack(side=tk.LEFT, expand=tk.YES, pady=2)
+        frm1.pack(side=tk.TOP, anchor=tk.W, fill=tk.BOTH, expand=tk.YES)
+
+
+    def show_graphs_progress(self):
+        """
+        Muestra el número de gráficos grabado
+        """
+        frm1 = tk.Frame(self.master, relief=tk.GROOVE, pady=2)
+        tk.Label(frm1, text = "En ejecución:", pady=2) \
+        .pack(side=tk.LEFT, anchor=tk.W)
+        tk.Label(frm1, textvariable = self.icount, pady=2) \
+        .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
+        tk.Label(frm1, text = '/',pady=2) \
+        .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
+        tk.Label(frm1, textvariable = self.ngraf, padx=8, pady=2) \
+        .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
+        frm1.pack(side=tk.TOP, anchor=tk.W, fill=tk.X, expand=tk.YES)
+
+
+    def execute_buttons(self):
+        """
+        Botón de ejecución y otros generales
+        """
+        frm1 = tk.Frame(self.master, borderwidth=2, relief=tk.GROOVE, pady=2)
+        tk.Button(frm1, text="Ejecutar", padx=5, pady=2,
+                  command=self.do_graphs, relief=tk.RIDGE) \
+        .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X, padx=1)
+        tk.Button(frm1, text="Finalizar", padx=5, pady=2,
+                  command=self.exit_gui, relief=tk.RIDGE) \
+        .pack(side=tk.RIGHT , anchor=tk.W, fill=tk.X, padx=1)
+        tk.Button(frm1, text="Ayuda", padx=5, pady=2,
+                  command=self.help_window, relief=tk.RIDGE) \
+        .pack(side=tk.RIGHT , anchor=tk.W, fill=tk.X, padx=1)
+        tk.Button(frm1, text="Ver log", padx=5, pady=2,
+                  command=self.show_log_file, relief=tk.RIDGE) \
+        .pack(side=tk.RIGHT, anchor=tk.W, fill=tk.X, padx=1)
+        frm1.pack(side=tk.TOP, anchor=tk.W, fill=tk.X, expand=tk.NO)
 
 
     @staticmethod
-    def __strdate2gui(str_date: str, sep: str='-') -> str:
+    def strdate8651_2sp(str_date: str, sep: str='-') -> str:
         """
-        convert a date as str from format 'yyyy-mm-dd' to 'dd/mm/yyyy'
+        Cambia un str con formato fecha 'yyyy-mm-dd' (iso-8651) a un
+            formato 'dd/mm/yyyy' (sp)
         """
         a = str_date.split(sep)
         d1 = date(int(a[0]), int(a[1]), int(a[2]))
@@ -272,9 +265,10 @@ class GUI(tk.Frame):
 
 
     @staticmethod
-    def __strdate2sqlite(str_date: str, sep: str='/') -> str:
+    def strdate_sp2_8651(str_date: str, sep: str='/') -> str:
         """
-        convert a date as str from format 'dd/mm/yyyy' to 'yyyy-mm-dd'
+        Cambia un str con formato fecha 'dd/mm/yyyy' (sp) a un
+            formato 'yyyy-mm-dd' (iso-8651)
         """
         a = str_date.split(sep)
         d1 = date(int(a[2]), int(a[1]), int(a[0]))
@@ -282,9 +276,9 @@ class GUI(tk.Frame):
 
 
     @staticmethod
-    def __str_to_date(str_date: str, sep: str='/') -> date:
+    def strdate_sp_2date(str_date: str, sep: str='/') -> date:
         """
-        convert a date as str from format 'dd/mm/yyyy' to date
+        Convierte un str con formato fecha 'dd/mm/yyyy' (sp) a un tipo date
         """
         a = str_date.split(sep)
         return date(int(a[2]), int(a[1]), int(a[0]))
@@ -307,8 +301,8 @@ class GUI(tk.Frame):
                         'upper_date text, date_action text)')
 
             path_out = self.path_out.get()
-            lower_date = GUI.__strdate2sqlite(self.lower_date.get())
-            upper_date = GUI.__strdate2sqlite(self.upper_date.get())
+            lower_date = GUI.strdate_sp2_8651(self.lower_date.get())
+            upper_date = GUI.strdate_sp2_8651(self.upper_date.get())
             d1 = datetime.today()
             d1 = d1.strftime('%Y-%m-%d %H:%M:%S')
 
@@ -331,7 +325,7 @@ class GUI(tk.Frame):
             con.close()
 
 
-    def __set_defaults(self, defaults: dict):
+    def set_defaults(self, defaults: dict):
         self.path_out.set(defaults['path_out'])
         self.lower_date.set(defaults['lower_date'])
         self.upper_date.set(defaults['upper_date'])
@@ -363,15 +357,15 @@ class GUI(tk.Frame):
             row = cur.fetchone()
             if not row:
                 con.close()
-                self.__set_defaults(defaults)
+                self.set_defaults(defaults)
                 return
         except:
-            self.__set_defaults(defaults)
+            self.set_defaults(defaults)
             return
         finally:
             con.close()
-        lower_date = GUI.__strdate2gui(row['lower_date'])
-        upper_date = GUI.__strdate2gui(row['upper_date'])
+        lower_date = GUI.strdate8651_2sp(row['lower_date'])
+        upper_date = GUI.strdate8651_2sp(row['upper_date'])
         self.path_out.set(row['path_out'])
         self.lower_date.set(lower_date)
         self.upper_date.set(upper_date)
@@ -389,20 +383,15 @@ class GUI(tk.Frame):
         """
         lee el fichero de ayuda y abre una ventana con su contenido
         """
-        from io import StringIO
-        lines = StringIO()
         try:
-            f = open(FILE_HELP, 'r')
-            for line in f.readlines():
-                lines.write(line)
-            f.close()
+            with open(FILE_HELP, 'r') as f:
+                lines = f.readlines()
+                lines = ''.join(lines)
         except:
             a = format_exc()
-            logging.append(a, toScreen=False)
-            lines.write(f'Error al leer {FILE_HELP}')
-
-        contents=lines.getvalue()
-        Child_show_text(self.master, contents, 'Ayuda')
+            logging.append(a, False)
+            lines = (f'Error al leer {FILE_HELP}')
+        Child_show_text(self.master, 'Ayuda', lines)
 
 
     def show_log_file(self):
@@ -410,7 +399,7 @@ class GUI(tk.Frame):
         muestra el contenido del fichero de log
         """
         contents = logging.get_as_str()
-        Child_show_text(self.master, contents, 'Fichero log')
+        Child_show_text(self.master, 'Fichero log', contents)
 
 
     def output_dir_set(self):
@@ -438,7 +427,7 @@ class GUI(tk.Frame):
         self.path_out.set(normpath(dst))
 
 
-    def __cargar_lista_proyectos_en_listbox(self):
+    def projects_in_listbox_set(self):
         """
         carga la lista de proyetos leidos en el fichero xml
         """
@@ -486,19 +475,15 @@ class GUI(tk.Frame):
             self.upperPlotOnly.set(0)
             self.ckb2.config(state='normal')
 
-        if self.edlb:
-            self.edlb.config(state='normal')
-            self.edub.config(state='normal')
 
-
-    def __ver_proyecto(self):
+    def project_show(self):
         """
         muestra la informacion del projecto seleccionado
         """
         if self.selected_project > len(self.projects):
             return
         xml_str = self.projects[self.selected_project].pretty_xml_get()
-        Child_show_text(self.master, xml_str, 'Proyecto seleccionado')
+        Child_show_text(self.master, 'Proyecto seleccionado', xml_str)
 
 
     def remove_selected_project(self):
@@ -517,7 +502,7 @@ class GUI(tk.Frame):
         self.selected_project_show.set(i*' ')
 
 
-    def __do_graphs(self):
+    def do_graphs(self):
         """
         llamada al metodo en el que se ejecutan los select y se
             graban los graficos
@@ -551,8 +536,8 @@ class GUI(tk.Frame):
         self.master.configure(cursor='watch')
         self.ngraf.set(0)
         self.icount.set(0)
-        d1 = GUI.__str_to_date(self.lower_date.get())
-        d2 = GUI.__str_to_date(self.upper_date.get())
+        d1 = GUI.strdate_sp_2date(self.lower_date.get())
+        d2 = GUI.strdate_sp_2date(self.upper_date.get())
         only_master = self.only_master.get()
         only_upper_graph = self.upperPlotOnly.get()
         counter = prj.xygraphs(dst, d1, d2, only_master, only_upper_graph)
@@ -582,128 +567,59 @@ class GUI(tk.Frame):
             volver()
 
 
-    def validate_date(self, sd, showerror=True):
+    def validate_dates(self):
         """
-        comprueba que el string sd contiene una fecha valida
-        el formadto de sd es d/M/Y, los separadores pueden ser / o -
+        Valida las fecha inicial y la final de la master select
         """
-        from datetime import date
-        from inspect import stack
-
-        sd=sd.strip()
-        if sd:
-            if sd.find('/') >= 0:
-                dw = sd.split('/')
-            elif sd.find('-') >= 0:
-                dw = sd.split('-')
-            else:
-                if showerror:
-                    tk.messagebox.showinfo(stack()[0][3],
-                                           'los separadores válidos en la' +\
-                                           ' fecha {} deben ser / o - ' \
-                                           .format(sd))
-                return None
+        def validate_1_date(str_date: str, sep='/') -> date:
+            lst = str_date.split(sep)
+            if len(lst) != 3:
+                raise ValueError(f'{str_date} no es una fecha válida')
             try:
-                return date(int(dw[2]), int(dw[1]), int(dw[0]))
+                return date(int(lst[2]), int(lst[1]), int(lst[0]))
             except:
-                if showerror:
-                    tk.messagebox.showinfo(stack()[0][3],
-                                           'la fecha {} introducida no es ' +\
-                                           'válida'.format(sd))
-                return None
-        else:
-            if showerror:
-                tk.messagebox.showerror(stack()[0][3],
-                                        'no ha introducido la fecha')
-            return None
+                raise ValueError(f'{str_date} no es una fecha válida')
 
-
-    def dates_compare(self, date1, date2):
-        """
-        compara las fechas inferior y superior de una select cuando
-        ambas están definidas
-        """
-        from inspect import stack
-
-        if date1 is None or date2 is None:
-            return False
-
-        if date1 == date2:
-            a = tk.messagebox.askyesno(stack()[0][3],
-                                       'las 2 fechas son iguales\ndesea ' +\
-                                       'mantenerlas?')
-            if a:
-                return True
-            else:
-                return False
-        elif date1 > date2:
-            date1, date2 = date2, date1
-            if a:
-                d = date1
-                date1 = date2
-                date2 = d
-                self.lower_date.set(date1.strftime('%d/%m/%Y'))
-                self.upper_date.set(date2.strftime('%d/%m/%Y'))
-                return True
-            else:
-                return False
-
-
-    def validar_lub_date(self, mostrar=1):
-        """
-        Validad las fecha inicial y la final de la master select
-        """
-        e = (self.edlb, self.edub)
-        sd = (self.lower_date, self.upper_date)
-        d = [None, None]
-        for i in range(len(e)):
-            if e[i].cget('state') == 'disabled':
-                continue
-            try:
-                d[i] = self.validate_date(sd[i].get())
-                if d[i] is None:
-                    return False
-            except:
-                from traceback import format_exc
-                tk.messagebox.showerror(self.__module__,"{}" \
-                                        .format(format_exc()))
-                return False
-        self.dates_compare(d[0], d[1])
-
-        if mostrar == 1:
-            tk.messagebox.showinfo(self.__module__,
-                                   'Las fechas introducidas son válidas')
-        return True
+        try:
+            d1 = validate_1_date(self.lower_date.get())
+            d2 = validate_1_date(self.upper_date.get())
+            if d1 > d2:
+                self.lower_date.set(d2.strftime('%d/%m/%Y'))
+                self.upper_date.set(d1.strftime('%d/%m/%Y'))
+            tk.messagebox.showinfo('Validar fechas', 'Las fechas son válidas')
+        except Exception as er:
+            tk.messagebox.showerror('Validar fechas', f'{er}')
 
 
 class Child_show_text:
 
-    def __init__(self, master, msg, title):
+    def __init__(self, master, title: str, text_body: str):
         """
-        Ayuda del programa
+        Presenta un texto aclaratorio del programa en una ventana nueva
         """
         self.master = master
         self.slave = tk.Toplevel(master)
-        self.slave.title(title)
+        self.show(title, text_body)
 
+
+    def show(self, title, text_body):
+        """
+        Dibuja la ventana
+        """
+        self.slave.title(title)
         frm_10 = tk.Frame(self.slave)
         vScrollbar_1 = tk.Scrollbar(frm_10, orient=tk.VERTICAL)
-        self.txt_1 = tk.Text(frm_10, background='White', foreground='Black',
+        txt_1 = tk.Text(frm_10, background='Black', foreground='White',
                              yscrollcommand=vScrollbar_1.set,
                              width=70, height=25, wrap=tk.WORD,
                              relief=tk.GROOVE, spacing2=1)
         vScrollbar_1.pack(side=tk.RIGHT,fill=tk.Y, expand=0)
-        self.txt_1.pack(side=tk.LEFT,fill=tk.BOTH, expand=1)
-        vScrollbar_1.config(command=self.txt_1.yview)
-        frm_10.pack(side=tk.TOP, anchor=tk.W, fill=tk.BOTH,
-                    expand=tk.YES, padx=2, pady=2)
-
-        if isinstance(msg, type('a')):
-            self.txt_1.insert(tk.END,msg)
-        if isinstance(msg, type([])) or isinstance(msg, type(())):
-            for linea in msg:
-                self.txt_1.insert(tk.END, msg)
-        self.txt_1.config(state=tk.DISABLED)
+        txt_1.pack(side=tk.LEFT,fill=tk.BOTH, expand=1)
+        vScrollbar_1.config(command=txt_1.yview)
+        frm_10.pack(side=tk.TOP, anchor=tk.W, fill=tk.BOTH, expand=tk.YES,
+                    padx=2, pady=2)
+        txt_1.insert(tk.END, text_body)
+        txt_1.config(state=tk.DISABLED)
         self.slave.grab_set()
         self.slave.focus_set()
         self.slave.wait_window()
