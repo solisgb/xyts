@@ -232,7 +232,7 @@ class Project(object):
 
 
     def xygraphs(self, dir_plots: str, date1: date, date2: date,
-                 only_master: int, only_upper_graph: int):
+                 only_master: int, only_upper_graph: int, write_data: int):
         """
         Se ejecutan los select y se preparan los datos para llamar a las
             funciones de matplotlib que dibuja los graficos XY
@@ -244,6 +244,7 @@ class Project(object):
         only_upper_graph: si existe un elemento lower_relation y
             only_upper_graph es 1 no se representarán los puntos relacionados
             con el master en el gráfico inferior
+        write_data: si 1 graba los datos de cada figura en un fichero
         """
         from os.path import join
         from db_connection import con_get
@@ -263,16 +264,7 @@ class Project(object):
             logging.append(st, False)
             raise ValueError(st)
 
-        # índices a las columnas cod, xutm, yutm en la select
-        icod = self.element_with_atribb_get('master/col', 'type', 'cod')
-        icod = int(icod) - 1
-        ixutm = self.element_with_atribb_get('master/col', 'type', 'xutm')
-        if ixutm: #  es un elemento opcional
-            ixutm = int(ixutm) - 1
-        iyutm = self.element_with_atribb_get('master/col', 'type', 'yutm')
-        if iyutm:
-            iyutm = int(iyutm) - 1
-
+        icod, ixutm, iyutm = self.master_indices_get()
         f_summary = open(join(dir_plots, SUMMARY_FILE), 'w')
         st = 'cod\ttipo\tfecha1\tfecha2\tnum_datos\txutm\tyutm\n'
         f_summary.write(f'{st}')
@@ -293,8 +285,8 @@ class Project(object):
                 continue
             ts = [Time_series(x_upper, y_upper, row_dm[icod])]
 
-            st = self.line_to_summary(TIPO_MASTER, row_dm, x_upper,
-                        icod, ixutm, iyutm)
+            st = self.line_to_summary(TIPO_MASTER, row_dm, x_upper, icod,
+                                      ixutm, iyutm)
             f_summary.write(f'{st}\n')
 
             if only_master !=1:
@@ -327,7 +319,8 @@ class Project(object):
             ylabels = self.y_axis_names_get()
 
             try:
-                _ = plot_ts(title, ts, ylabels[0], dst, lower_ts, ylabels[1])
+                _ = plot_ts(title, ts, ylabels[0], dst, write_data,
+                            lower_ts, ylabels[1])
                 yield(i+1, len(data_master))
             except Exception:
                 from traceback import format_exc
@@ -343,6 +336,21 @@ class Project(object):
         f_summary.close()
         con.close()
         messagebox.showinfo(self.__module__, 'Proceso finalizado')
+
+
+    def master_indices_get(self) -> tuple:
+        """
+        devuelve los subscripts de interés para ser sads en la select master
+        """
+        icod = self.element_with_atribb_get('master/col', 'type', 'cod')
+        icod = int(icod) - 1
+        ixutm = self.element_with_atribb_get('master/col', 'type', 'xutm')
+        if ixutm: #  es un elemento opcional
+            ixutm = int(ixutm) - 1
+        iyutm = self.element_with_atribb_get('master/col', 'type', 'yutm')
+        if iyutm:
+            iyutm = int(iyutm) - 1
+        return (icod, ixutm, iyutm)
 
 
     def line_to_summary(self, tipo: str, row: list, xts: np.ndarray,

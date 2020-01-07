@@ -10,13 +10,10 @@ version: 0.4
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-#from pandas.plotting import register_matplotlib_converters
-#register_matplotlib_converters()
-
 
 class Time_series():
     """
-    define los datos y sus atributos para ser representados en un
+    Define los datos y sus atributos para ser representados en un
         gráfico
     """
     def __init__(self, fechas: [], values: [], legend: str, marker: str = '.',
@@ -80,7 +77,7 @@ class Time_series():
 class Plot_time_series():
 
     def __init__(self, title: str, ts1: [], ylabel1: str, dst: str,
-                 ts2: list=[], ylabel2: str=''):
+                 write_data: int, ts2: list=[], ylabel2: str=''):
         """
         Llama a la función que dibuja uno o dos gráficos por figura
         args
@@ -97,9 +94,13 @@ class Plot_time_series():
                 raise ValueError('Los elementos de ts1 y ts2 deben ser ' +\
                                  'instancias Time_series')
         if ts2:
-            xy_ts_plot_2g(title, ts1, ylabel1, ts2, ylabel2, dst)
+            Plot_time_series.xy_ts_plot_2g(title, ts1, ylabel1, ts2, ylabel2,
+                                           dst)
         else:
             Plot_time_series.xy_ts_plot_1g(title, ts1, ylabel1, dst)
+        if write_data:
+            Plot_time_series.write_data_2xml(dst, title, ts1, ylabel1,
+                                             ts2, ylabel2)
 
 
     @staticmethod
@@ -138,84 +139,104 @@ class Plot_time_series():
         plt.rcdefaults()
 
 
-def xy_ts_plot_2g(title: str, tsu: list, ylabelu: str, tsl: list, ylabell: str,
-                  dst: str):
-    """
-    Dibuja una figura con 2 gráfico (axis) xy de una o más series cada uno que
-        comparten el eje x. El superior es el principal y ocupa 2/3 de la
-        altura de la figura. El inferior es secundario y ocupa 1/3 de la
-        altura de la figura
-    title: título de la figura
-    tsu: lista de objetos Time_series para el gráfico superior
-    ylabelu: label eje y gráfico superior
-    tsl: lista de objetos Time_series para el gráfico inferior
-    dst: nombre fichero destino (debe incluir la extensión png)
-    """
-    import matplotlib.pyplot as plt
-    import matplotlib as mpl
+    @staticmethod
+    def xy_ts_plot_2g(title: str, tsu: list, ylabelu: str, tsl: list,
+                      ylabell: str, dst: str):
+        """
+        Dibuja una figura con 2 gráfico (axis) xy de una o más series cada uno
+            que comparten el eje x. El superior es el principal y ocupa 2/3 de
+            la altura de la figura. El inferior es secundario y ocupa 1/3 de la
+            altura de la figura
+        title: título de la figura
+        tsu: lista de objetos Time_series para el gráfico superior
+        ylabelu: label eje y gráfico superior
+        tsl: lista de objetos Time_series para el gráfico inferior
+        dst: nombre fichero destino (debe incluir la extensión png)
+        """
+        import matplotlib.pyplot as plt
+        import matplotlib as mpl
 
-    # parámetros específicos
-    mpl.rc('font', size=8)
-    mpl.rc('axes', labelsize=8, titlesize= 10, grid=True)
-    mpl.rc('axes.spines', right=False, top=False)
-    mpl.rc('xtick', direction='out', top=False)
-    mpl.rc('ytick', direction='out', right=False)
-    mpl.rc('lines', linewidth=0.8, linestyle='-', marker='.', markersize=4)
-    mpl.rc('legend', fontsize=8, framealpha=0.5, loc='best')
+        # parámetros específicos
+        mpl.rc('font', size=8)
+        mpl.rc('axes', labelsize=8, titlesize= 10, grid=True)
+        mpl.rc('axes.spines', right=False, top=False)
+        mpl.rc('xtick', direction='out', top=False)
+        mpl.rc('ytick', direction='out', right=False)
+        mpl.rc('lines', linewidth=0.8, linestyle='-', marker='.', markersize=4)
+        mpl.rc('legend', fontsize=8, framealpha=0.5, loc='best')
 
-    fig, _ = plt.subplots()
+        fig, _ = plt.subplots()
 
-    plt.suptitle(title)
-    plt.subplots_adjust(hspace=0.1, bottom=0.16, top=0.87)
+        plt.suptitle(title)
+        plt.subplots_adjust(hspace=0.1, bottom=0.16, top=0.87)
 
-    ax1 = plt.subplot2grid((3, 1), (0, 0), rowspan=2)
-    ax2 = plt.subplot2grid((3, 1), (2, 0), sharex=ax1)
-    ax1.set_ylabel(ylabelu)
-    ax2.set_ylabel(ylabell)
+        ax1 = plt.subplot2grid((3, 1), (0, 0), rowspan=2)
+        ax2 = plt.subplot2grid((3, 1), (2, 0), sharex=ax1)
+        ax1.set_ylabel(ylabelu)
+        ax2.set_ylabel(ylabell)
 
-    fig.autofmt_xdate()
+        fig.autofmt_xdate()
 
-    for ts1 in tsu:
-        ax1.plot(ts1.x, ts1.y, label=ts1.legend)
-        ax1.legend()
+        for ts1 in tsu:
+            ax1.plot(ts1.x, ts1.y, label=ts1.legend)
+            ax1.legend()
 
-    # subplot inferior (stem)
-    for ts1 in tsl:
-        markerline, _, _ = ax2.stem(ts1.x, ts1.y, markerfmt=' ', basefmt=' ',
-                                    label=ts1.legend, use_line_collection=True)
-        markerline.set_markerfacecolor('none')
-        ax2.legend()
+        # subplot inferior (stem)
+        for ts1 in tsl:
+            markerline, _, _ = ax2.stem(ts1.x, ts1.y, markerfmt=' ',
+                                        basefmt=' ', label=ts1.legend,
+                                        use_line_collection=True)
+            markerline.set_markerfacecolor('none')
+            ax2.legend()
 
-    fig.savefig(dst)
-    plt.close('all')
-    plt.rcdefaults()
+        fig.savefig(dst)
+        plt.close('all')
+        plt.rcdefaults()
 
 
-def XYt_1_xml(t_series: [], stitle: str, ylabel: str, dst: str):
-    """
-    graba un fichero xml con los datos de un gráfico xy de una o más series
+    @staticmethod
+    def write_data_2xml(dst: str, title: str, ts1: [], ylabel1: str,
+                        ts2: list=[], ylabel2: str=''):
+        """
+        graba un fichero xml con los datos de un gráfico xy de una o más series
+        args
+        dst: nombre del fichero png del gráfico
+        title: título de la figura
+        ts1: lista de objetos Time_series en el gráfico superior
+        ylabel1: título del eje Y en el gráfico superior
+        ts2: lista de objetos Time_series en el gráfico inferior
+        ylabel2: título del eje Y en el gráfico inferior
+        """
+        from os.path import splitext
 
-    input
+        name, ext = splitext(dst)
+        fo = open(name + '.xml', 'w')
+        fo.write('<?xml version="1.0" encoding="windows-1252"?>\n')
+        fo.write(f'<fig>\n')
+        fo.write(f'<titulo>{title}</titulo>\n')
+        Plot_time_series.write_time_series_list(fo, ts1, ylabel1)
+        if ts2:
+            Plot_time_series.write_time_series_list(fo, ts2, ylabel2)
+        fo.write(f'</fig>\n')
+        fo.close()
+
+
+    @staticmethod
+    def write_time_series_list(fo, t_series, ylabel):
+        """
+        graba una lista de instancias Time_series
+        args
+        fo: objecto File, abierto
         t_series: lista de objetos Time_series; el primer elemento se
             considera la series principal
-        stitle: título del gráfico
         ylabel: título del eje Y
-        dst: directorio donde se graba el gráfico (debe existir)
-    """
-    from os.path import splitext
+        """
+        fo.write('<xy>\n')
+        fo.write(f'<eje_y>{ylabel}</eje_y>\n')
+        for ts1 in t_series:
+            fo.write(f'<punto>{ts1.legend}\n')
+            for x1, v1 in zip(ts1.x, ts1.y):
+                fo.write(f'<d>{x1}\t{v1:0.2f}</d>\n')
+            fo.write('</punto>\n')
+        fo.write('</xy>\n')
 
-    name, ext = splitext(dst)
-    fo = open(name + '.xml', 'w')
-    fo.write('<?xml version="1.0" encoding="windows-1252"?>\n')
-    fo.write('<xy>\n')
-    fo.write('<titulo>{}</titulo>\n'.format(stitle))
-    fo.write('<eje_y_nombre>{}</eje_y_nombre>\n'.format(ylabel))
-    # El primer objeto es el principal
-    for ts1 in t_series:
-        fo.write('<id>{}\n'.format(ts1.legend))
-        for fecha, value in zip(ts1.fechas, ts1.values):
-            fo.write('<d>{0:s}\t{1:0.2f}</d>\n'.
-                     format(fecha.strftime("%d/%m/%Y %H"), value))
-        fo.write('</id>\n')
-    fo.write('</xy>\n')
-    fo.close()

@@ -16,7 +16,8 @@ TITLE_WINDOW = 'xyts -xy time series-'
 
 class GUI(tk.Frame):
     """
-    GUI con tkinter. No tiene ningún método público
+    GUI con tkinter. No tiene ningún método público salvo la instanciación
+        de la clase
     """
 
     def __init__(self, master):
@@ -31,27 +32,25 @@ class GUI(tk.Frame):
         self.selected_project: int = TKINTNULL
         # nombre del proyecto seleccionado
         self.selected_project_show = tk.StringVar()
-        # directorio de resultados
-        self.path_out = tk.StringVar()
-        # indicador del número de gráfico grabados
-        self.icount = tk.IntVar(value=0)
-        # número total de gráficos potenciales en el proyecto
-        self.ngraf = tk.IntVar(value=0)
-        # indicador de grabar los datos representados [0, 1]
-        self.dataToFile = tk.IntVar(value=1)
-        # indicador de grabar solo el primer gráfico
-        self.only_master = tk.IntVar(value=0)
-        # indicador de grabar solo el gráfico superior
-        self.upperPlotOnly = tk.IntVar(value=0)
-        # indicador de grabar el fichero de localizaciones de los puntos
-        self.grabar_localizaciones = tk.IntVar(value=1)
         # fecha inicial en las select
         self.lower_date = tk.StringVar()
         # fecha final en las select
         self.upper_date = tk.StringVar()
-        # pausar la ejecución en el gráfico número n
+        # indicador de grabar solo la primera serie del gráf. principal
+        self.only_master = tk.IntVar(value=0)
+        # indicador de grabar solo el gráfico principal
+        self.upper_graph_only = tk.IntVar(value=0)
+        # indicador de grabar los datos de cada figura
+        self.write_data = tk.IntVar(value=0)
+        # directorio de resultados
+        self.path_out = tk.StringVar()
+        # indicador del número de figuras grabadas
+        self.icount = tk.IntVar(value=0)
+        # número total de figuras totales en el proyecto en ejecución
+        self.ngraph = tk.IntVar(value=0)
+        # pausar la ejecución en la figura número n (entero)
         self.stop_from_graph = tk.IntVar(value=0)
-        # siguiente pausa cada m gráficos
+        # siguiente pausa cada m (entero) figuras
         self.stop_graph_step = tk.IntVar(value=0)
         # elemento tkinter root
         self.master = master
@@ -148,7 +147,7 @@ class GUI(tk.Frame):
 
     def entry_dates(self):
         """
-        Entry dates and validation button
+        Date entries y botones de utilidad relacionados con fechas
         """
         frm1 = tk.Frame(self.master, borderwidth=2, pady=2)
         tk.Label(frm1,
@@ -156,10 +155,16 @@ class GUI(tk.Frame):
                  pady=2).pack(side=tk.LEFT, anchor=tk.W)
         self.edlb=tk.Entry(frm1, textvariable=self.lower_date, width=12,
                            justify=tk.RIGHT).pack(side=tk.LEFT)
+        tk.Button(frm1, text="Primera", padx=1, pady=1,
+                  command=self.date_first, relief=tk.RIDGE) \
+        .pack(side=tk.LEFT, anchor=tk.W, padx=4)
         tk.Label(frm1, text="Fecha superior", pady=2) \
         .pack(side=tk.LEFT, anchor=tk.W)
         self.edub = tk.Entry(frm1, textvariable=self.upper_date, width=12,
                              justify=tk.RIGHT).pack(side=tk.LEFT)
+        tk.Button(frm1, text="Hoy", padx=1, pady=1,
+                  command=self.hoy, relief=tk.RIDGE) \
+        .pack(side=tk.LEFT, anchor=tk.W, padx=4)
         tk.Button(frm1, text="Validar", padx=1, pady=1,
                   command=self.validate_dates, relief=tk.RIDGE) \
         .pack(side=tk.LEFT, anchor=tk.W, padx=4)
@@ -178,11 +183,11 @@ class GUI(tk.Frame):
         self.ckb1.pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
         self.ckb2=tk.Checkbutton(frm1,
                                  text="Gráfico inferior deshabilitado",
-                                 variable=self.upperPlotOnly, pady=2,
+                                 variable=self.upper_graph_only, pady=2,
                                  state=tk.DISABLED)
         self.ckb2.pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
         self.ckb3=tk.Checkbutton(frm1, text="Grabar datos",
-                                 variable=self.dataToFile) \
+                                 variable=self.write_data) \
                                  .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
         frm1.pack(side=tk.TOP, anchor=tk.W, expand=tk.NO)
 
@@ -228,7 +233,7 @@ class GUI(tk.Frame):
         .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
         tk.Label(frm1, text = '/',pady=2) \
         .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
-        tk.Label(frm1, textvariable = self.ngraf, padx=8, pady=2) \
+        tk.Label(frm1, textvariable = self.ngraph, padx=8, pady=2) \
         .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
         frm1.pack(side=tk.TOP, anchor=tk.W, fill=tk.X, expand=tk.YES)
 
@@ -410,20 +415,17 @@ class GUI(tk.Frame):
         from os.path import join, normpath
         from tkinter.filedialog import askdirectory
 
-        while True:
-            dst = askdirectory(initialdir=self.path_out.get(),
-                               title='Seleccionar directorio',
-                               parent=self.master)
-            if not dst:
-                return
-            else:
-                files = glob(join(dst, '*.*'))
-                if files:
-                    if tk.messagebox.askyesno('Directorio con ficheros',
+        dst = askdirectory(initialdir=self.path_out.get(),
+                           title='Seleccionar directorio',
+                           parent=self.master)
+        if len(dst) == 0:
+            return
+        else:
+            files = glob(join(dst, '*.*'))
+            if files:
+                if not tk.messagebox.askyesno('Directorio con ficheros',
                                               '¿Continuar?'):
-                        break
-                    else:
-                        return
+                    return
         self.path_out.set(normpath(dst))
 
 
@@ -472,7 +474,7 @@ class GUI(tk.Frame):
 
         if self.projects[self.selected_project] \
                .exists_element('lower_relation'):
-            self.upperPlotOnly.set(0)
+            self.upper_graph_only.set(0)
             self.ckb2.config(state='normal')
 
 
@@ -510,9 +512,8 @@ class GUI(tk.Frame):
         from glob import glob
         from os.path import isdir, join
 
-
         def volver():
-            self.ngraf.set(0)
+            self.ngraph.set(0)
             self.icount.set(0)
             self.master.configure(cursor='arrow')
             self.master.update_idletasks()
@@ -528,24 +529,28 @@ class GUI(tk.Frame):
                                    'El directorio seleccionado no existe')
             return
         files = glob(join(dst, '*.*'))
+        try:
+            self.validate_dates(False)
+        except:
+            return
         if files:
             if not tk.messagebox.askyesno('Directorio con ficheros',
                                           '¿Continuar?'):
                 return
 
         self.master.configure(cursor='watch')
-        self.ngraf.set(0)
+        self.ngraph.set(0)
         self.icount.set(0)
         d1 = GUI.strdate_sp_2date(self.lower_date.get())
         d2 = GUI.strdate_sp_2date(self.upper_date.get())
-        only_master = self.only_master.get()
-        only_upper_graph = self.upperPlotOnly.get()
-        counter = prj.xygraphs(dst, d1, d2, only_master, only_upper_graph)
+        counter = prj.xygraphs(dst, d1, d2, self.only_master.get(),
+                               self.upper_graph_only.get(),
+                               self.write_data.get())
         try:
             icontrol = self.stop_from_graph.get()
             for n, m in counter:
                 self.icount.set(n)
-                self.ngraf.set(m)
+                self.ngraph.set(m)
                 self.master.update_idletasks()
                 if n == icontrol:
                     if not tk.messagebox.askyesno(f'Gráfico {n}/{m}',
@@ -567,7 +572,7 @@ class GUI(tk.Frame):
             volver()
 
 
-    def validate_dates(self):
+    def validate_dates(self, show: bool=True):
         """
         Valida las fecha inicial y la final de la master select
         """
@@ -586,9 +591,26 @@ class GUI(tk.Frame):
             if d1 > d2:
                 self.lower_date.set(d2.strftime('%d/%m/%Y'))
                 self.upper_date.set(d1.strftime('%d/%m/%Y'))
-            tk.messagebox.showinfo('Validar fechas', 'Las fechas son válidas')
+            if show:
+                tk.messagebox.showinfo('Validar fechas',
+                                       'Las fechas son válidas')
         except Exception as er:
             tk.messagebox.showerror('Validar fechas', f'{er}')
+
+
+    def date_first(self):
+        """
+        Actualiza la variable con la fecha más baja posible
+        """
+        self.lower_date.set(LOWER_DATE)
+
+
+    def hoy(self):
+        """
+        Actualiza la variable con la fecha de hoy
+        """
+        d1 = datetime.today().strftime('%d/%m/%Y')
+        self.upper_date.set(d1)
 
 
 class Child_show_text:

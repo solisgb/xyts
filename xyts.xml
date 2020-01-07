@@ -1,21 +1,15 @@
 <?xml version="1.0" encoding="iso-8859-1" standalone="yes"?>
-<!-- Entrada de datos para xyts.py
-     programa para generar ficheros de gráficos xy
-     directorios de BBDD usadas frecuentemente
-	 Ipasub97.mdb, P4PIEZODHS.mdb
-	 Laptop Luis
-	 C:\\Users\\solil\\Documents\\_D\\BBDD\\servidor
-	 Office
-	 \\ESMUR0001\\hidrogeologia\\BD_IPASUB
-     -->
+<!-- Proyectos que utiliza el programa xyts
+    El programa graba figuras xy de series temporales
+ -->
 <xyts>
-	<project name="CHS Red piezométrica actual: CNP, prec. mensual">
+	<project name="CHS CNP en Red piezométrica actual con prec. mensual en masub">
 		<db type="ms_access">C:\Users\solis\Documents\DB\Ipasub97.mdb</db>
 		<graph>
 			<y_axis_name>CNP m s.n.m.</y_axis_name>
-			<y_axis_name>P dmm/d]</y_axis_name>
-			<axis_type>LINEAR]</axis_type>
-			<axis_type>BARS</axis_type>
+			<y_axis_name>P dmm/d</y_axis_name>
+			<axis_type>plot</axis_type>
+			<axis_type>stem</axis_type>
 		</graph>
 		<master>
 			<select>
@@ -52,6 +46,99 @@
 			<select>SELECT COD2 FROM IPA1_SELF WHERE COD1=? AND ACTIVO=1 ORDER BY COD2;</select>
 			<select_location>SELECT X_UTM, Y_UTM FROM IPA1 WHERE COD=?;</select_location>
 		</upper_relation>
+		<lower_relation>
+			<select>SELECT nmasub FROM ipa1_masub WHERE dh=7 AND COD=?;</select>
+		</lower_relation>
+		<lower_ts>
+			<select>SELECT fecha, valor FROM masub_pm_idw WHERE fid=? AND fecha&gt;=? AND fecha&lt;=? ORDER BY fecha;</select>
+		</lower_ts>
+	</project>
+	<project name="CHS Aforos Red OPH con prec. mensual en masub">
+		<db type="ms_access">C:\Users\solis\Documents\DB\Ipasub97.mdb</db>
+		<graph>
+			<y_axis_name>l/seg</y_axis_name>
+			<y_axis_name>P dmm/d</y_axis_name>
+			<axis_type>plot</axis_type>
+			<axis_type>stem</axis_type>
+		</graph>
+		<master>
+			<select>
+			SELECT ACUIFEROS.MASUBn, ACUIFEROS.NOMACU, IPA1.COD, IPA1.X_UTM, IPA1.Y_UTM, IPA1.TOPONIMIA
+			FROM (ACUIFEROS INNER JOIN IPA1 ON ACUIFEROS.COD_ACU = IPA1.ACUIFERO) INNER JOIN IPA1_RED_CONTROL ON IPA1.COD = IPA1_RED_CONTROL.codigo
+			WHERE (IPA1_RED_CONTROL.red='H1' Or IPA1_RED_CONTROL.red='H5' Or IPA1_RED_CONTROL.red='H8' Or IPA1_RED_CONTROL.red='H9') AND IPA1_RED_CONTROL.fecha_baja Is Null
+			ORDER BY ACUIFEROS.MASUBn, ACUIFEROS.NOMACU, IPA1.COD;
+			</select>
+			<col type='cod'>3</col>
+			<col type='xutm'>4</col>
+			<col type='yutm'>5</col>
+			<title>
+				<text>{} ({})</text>
+				<col>6</col>
+				<col>3</col>
+			</title>
+			<title>
+				<text>Acuífero {} (MASUB 07.{:03d})</text>
+				<col>2</col>
+				<col>1</col>
+			</title>
+			<file>
+				<name>{:03d}_{}_{}</name>
+				<col>1</col>
+				<col>2</col>
+				<col>3</col>
+			</file>
+		</master>
+		<upper_ts>
+			<select>
+			SELECT IPA3.FECHA, IPA3.CAUDAL_LS FROM IPA3 WHERE IPA3.COD=? AND IPA3.FECHA&gt;=? AND IPA3.FECHA&lt;=? ORDER BY IPA3.FECHA;	
+			</select>
+		</upper_ts>
+		<lower_relation>
+			<select>SELECT nmasub FROM ipa1_masub WHERE dh=7 AND COD=?;</select>
+		</lower_relation>
+		<lower_ts>
+			<select>SELECT fecha, valor FROM masub_pm_idw WHERE fid=? AND fecha&gt;=? AND fecha&lt;=? ORDER BY fecha;</select>
+		</lower_ts>
+	</project>
+	<project name="CHS PNP en Red OPH humedales con prec. mensual en masub">
+		<db type="ms_access">C:\Users\solis\Documents\DB\Ipasub97.mdb</db>
+		<graph>
+			<y_axis_name>PNP m</y_axis_name>
+			<y_axis_name>P dmm/d</y_axis_name>
+			<axis_type>plot</axis_type>
+			<axis_type>stem</axis_type>
+		</graph>
+		<master>
+			<select>
+			SELECT ACUIFEROS.MASUBn, ACUIFEROS.NOMACU, IPA1.COD, IPA1.X_UTM, IPA1.Y_UTM, IPA1.TOPONIMIA
+			FROM (ACUIFEROS INNER JOIN IPA1 ON ACUIFEROS.COD_ACU = IPA1.ACUIFERO) INNER JOIN IPA1_RED_CONTROL ON IPA1.COD = IPA1_RED_CONTROL.codigo
+			WHERE IPA1_RED_CONTROL.RED='H4' AND IPA1_RED_CONTROL.fecha_baja Is Null
+			ORDER BY ACUIFEROS.MASUBn, ACUIFEROS.NOMACU, IPA1.COD;
+			</select>
+			<col type='cod'>3</col>
+			<col type='xutm'>4</col>
+			<col type='yutm'>5</col>
+			<title>
+				<text>Evolución de la profundidad del agua en el sondeo {}</text>
+				<col>3</col>
+			</title>
+			<title>
+				<text>Acuífero {} (MASUB 07.{:03d})</text>
+				<col>2</col>
+				<col>1</col>
+			</title>
+			<file>
+				<name>{:03d}_{}_{}</name>
+				<col>1</col>
+				<col>2</col>
+				<col>3</col>
+			</file>
+		</master>
+		<upper_ts>
+			<select>
+			SELECT IPA2.FECHA, IPA2.PNP FROM IPA2 WHERE IPA2.COD=? AND IPA2.FECHA&gt;=? AND IPA2.FECHA&lt;=? ORDER BY IPA2.FECHA;	
+			</select>
+		</upper_ts>
 		<lower_relation>
 			<select>SELECT nmasub FROM ipa1_masub WHERE dh=7 AND COD=?;</select>
 		</lower_relation>
