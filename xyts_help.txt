@@ -1,8 +1,8 @@
 INTRODUCCIÓN==================================
 
-Programa para grabar ficheros de imágenes en formato png (figura) de series temporales de estaciones (puntos). Los datos están almacenados en una base de datos
+Programa para grabar ficheros de imágenes en formato png de series temporales de estaciones. Los datos están almacenados en una base de datos. Cada fichero png se denomina figura.
 
-Cada figura puede tener uno o dos gráficos que comparten el eje de las Y (fechas). El gráfico principal se pueden representar las series temporales de otros puntos relacionados con el punto principal; las series del gráfico principal deben representar la misma variable. La figura puede tener un gráfico inferior de otro punto relacionado con principal; en este gráfico inferior se puede presentar otra variable diferente a la del gráfico superior.
+Cada figura puede tener uno o dos gráficos superpuestos que comparten el eje de las abcisas (fechas). La figura representa la evolución temporal de una variable medida en un punto o estación de medida; el gráfico en que se presenta la evolución de la variable en el punto es el gráfico principal. En el gráfico principal se pueden representar las series temporales de la misma variable en otros puntos relacionados con el punto principal. La figura puede tener un gráfico adicional que se dibuja debajo del gráfico principal; en esta figura inferior se representa las series temporales de otra variable en otro punto relacionado con principal.
 
 Los datos de los gráficos y la configuración del título de la figura, el nombre/s del/os eje/s Y se definen en el fichero xyts.xml. La estructura del fichero xyts.xml puede ser consultada en xyts.docx. A cada conjunto de datos seleccionados de la base de datos y el tipo de gráfico común a todos ellos se le denomina proyecto. 
 
@@ -12,8 +12,8 @@ Los datos de los proyectos definidos en xyts.xml no pueden ser manejados a parti
 
 Botones de acción*****************************
 
-Seleccionar. Permite seleccionar uno de los proyectos que aparecen definidos en la ventana superior.
-Ver selección. Ver las características básicas del proyecto seleccionado.
+Seleccionar. Permite seleccionar uno de los proyectos que aparecen definidos.
+Ver selección. Se muestran las características del proyecto seleccionado en formato xml.
 Quitar selección. Deselecciona un proyecto previamente seleccionado.
 Ejecutar. Se inicia el proceso de creación de ficheros de gráficos del proyecto seleccionado.
 Ver log. Muestra las incidencias ocurridas durante la generación de los gráficos.
@@ -26,3 +26,5 @@ Rango de fechas de los gráficos. Indica el rango de fechas que se desea represen
 Solo serie principal. El punto principal del gráfico puede tener puntos asociados con datos de la misma variable; si la casilla está activda solo se representarán los datos del gráfico principal
 Gráfico inferior inactivo. El punto principal del gráfico puede tener puntos asociados datos de otros puntos con otra variable; si esta opción está activada solo se presenta el gráfico superior.
 Grabar datos. Si la casilla está habilitada se graba un fichero por figura con los datos representados.
+Interrumpir la ejecución del programa cuando se ha realizado el gráfico n, siendo n un número entero. Esta opción se utiliza principalmente cuando se desea ver un gráfico o conjunto de gráficos sin necesidad de sacar todos, generalmente cuando se incorpora un nuevo proyecto al fichero xyts.xml.
+Después de la primera interrupción, volver a realizar una interrupción cada m gráficos, siendo m un número entero

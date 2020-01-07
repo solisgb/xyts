@@ -272,13 +272,9 @@ class Project(object):
         iyutm = self.element_with_atribb_get('master/col', 'type', 'yutm')
         if iyutm:
             iyutm = int(iyutm) - 1
-        if ixutm and iyutm:
-            st = 'cod\ttipo\tfecha1\tfecha2\tnum_datos\t' +\
-            'xutm\tyutm\n'
-        else:
-            st = 'cod\ttipo\tfecha1\tfecha2\tnum_datos\n'
 
-        f_summary = open(SUMMARY_FILE, 'w')
+        f_summary = open(join(dir_plots, SUMMARY_FILE), 'w')
+        st = 'cod\ttipo\tfecha1\tfecha2\tnum_datos\txutm\tyutm\n'
         f_summary.write(f'{st}')
 
         if dbtype != 'ms_access':
@@ -291,7 +287,8 @@ class Project(object):
             x_upper, y_upper = Project.ts_get(dbtype, cur)
             if x_upper.size < 2:
                 logging.append(f'El punto {row_dm[icod]} tiene ' +\
-                               f'{x_upper.size:d} datos y no se hace gráfico')
+                               f'{x_upper.size:d} datos y no se hace' +\
+                               f' gráfico', False)
                 yield(i+1, len(data_master))
                 continue
             ts = [Time_series(x_upper, y_upper, row_dm[icod])]
@@ -305,7 +302,8 @@ class Project(object):
                 self.related_ts_get('upper_relation/select', cur, row_dm[icod],
                                     'upper_ts/select', date1, date2, dbtype,
                                     'upper_relation/select_location',
-                                    (row_dm[ixutm], row_dm[iyutm]))
+                                    (row_dm[ixutm], row_dm[iyutm]),
+                                    TIPO_UPPER_AUX, f_summary)
                 if upper_ts:
                     ts = ts + upper_ts
 
@@ -318,7 +316,8 @@ class Project(object):
                 self.related_ts_get('lower_relation/select', cur, row_dm[icod],
                                     'lower_ts/select', min_date, max_date,
                                     dbtype, 'lower_relation/select_location',
-                                    (row_dm[ixutm], row_dm[iyutm]))
+                                    (row_dm[ixutm], row_dm[iyutm]),
+                                    TIPO_LOWER_AUX, f_summary)
             else:
                 lower_ts = []
 
@@ -335,13 +334,15 @@ class Project(object):
                 st = format_exc()
                 logging.append(st, False)
                 messagebox.showerror(self.__module__, st)
+                if f_summary:
+                    f_summary.close()
+                if con:
+                   con.close()
                 return
 
         f_summary.close()
         con.close()
         messagebox.showinfo(self.__module__, 'Proceso finalizado')
-
-        # se graban los datos del gráfico
 
 
     def line_to_summary(self, tipo: str, row: list, xts: np.ndarray,
@@ -359,12 +360,15 @@ class Project(object):
         st = f'{row[icod]}\t{tipo}\t{xts[0]}\t{xts[-1]}\t{xts.size:d}'
         if ixutm and iyutm:
             st = st + f'\t{row[ixutm]:0.0f}\t{row[iyutm]:0.0f}'
+        else:
+            st = st + f'\t\t'
         return st
 
 
     def related_ts_get(self, path_relation: str, cur, cod_master,
                        path_data: str, date1, date2, dbtype: str,
-                       path_location: str, xy_dm: list):
+                       path_location: str, xy_dm: list, point_type: str,
+                       f_summary) -> list:
         """
         Extrae las series temporales relacionadas con un punto master
         LLamada solo desde xygraphs
@@ -386,6 +390,11 @@ class Project(object):
             extraer las coordenadas del punto relacionado
         xy_dm: son las coordenadas del punto master; si no se han obtenido sus
             2 elementos serán None
+        point_type: tipo de punto, uno de los siguientes: TIPO_MASTER,
+            TIPO_UPPER_AUX, TIPO_LOWER_AUX
+        f_summay: objeto file abierto -se puede escribir-
+        returns
+        Una lista de instancias Time_series; la lista puede estar vacía
         """
         ts_related = []
         if not self.exists_element(path_relation):
@@ -402,14 +411,13 @@ class Project(object):
             select = self.element_get(path_data)\
             .text.strip()
             cur.execute(select, (cod, date1, date2))
-            x_upper, y_upper = Project.ts_get(dbtype, cur)
-            if x_upper.size < 2:
+            x_arr, y_arr = Project.ts_get(dbtype, cur)
+            if x_arr.size < 2:
                 logging.append(f'El punto principal {cod_master} ' +\
-                               f'está relacionado con {cod} pero ' +\
-                               'no tiene datos en el rango de fechas')
+                               f'está relacionado con {cod} que no tiene ' +\
+                               'datos en el rango de fechas', False)
                 continue
-            if xy_dm[0] and xy_dm[1] and \
-            self.exists_element(path_location):
+            if xy_dm[0] and xy_dm[1] and self.exists_element(path_location):
                 select = \
                 self.element_get(path_location).text.strip()
                 cur.execute(select, (cod,))
@@ -418,8 +426,13 @@ class Project(object):
                             (xy_dm[1] - xyutm[1])**2)
                 leg = f'{cod}, {dist:0.0f} m'
             else:
+                xyutm = ['', '']
                 leg = f'{cod}'
-            ts_related.append(Time_series(x_upper, y_upper, leg))
+
+            st = f'{cod}\t{point_type}\t{x_arr[0]}\t{x_arr[-1]}\t' +\
+            f'{x_arr.size:d}\t{xyutm[0]}\t{xyutm[1]}'
+            f_summary.write(f'{st}\n')
+            ts_related.append(Time_series(x_arr, y_arr, leg))
         return ts_related
 
 
