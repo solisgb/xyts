@@ -9,7 +9,7 @@ from xyts_mpl import Time_series
 from xyts_mpl import Plot_time_series as plot_ts
 
 # Tipos de bases de datos soportadas =========================================
-dbtypes = ('ms_access', 'sqlite')
+dbtypes = ('ms_access', 'postgres', 'sqlite')
 # Nombre del fichero resumen de datos en gráficos xy =========================
 SUMMARY_FILE = '_xyts_resumen.txt'
 # Tipo de punto en gráfico ===================================================
@@ -67,11 +67,11 @@ class Project(object):
                 projects.append(prj)
             except Exception:
                 ner += 1
-                logging.append(f'El project {i:d} está mal formado',
+                logging.append(f'El project {i+1:d} está mal formado',
                                toScreen=False)
         if ner > 0:
-            messagebox.showinfo(f'No se han cargado {ner:d} proyectos' +\
-                                'porque están mal formados')
+            messagebox.showinfo(f'No se han cargado {ner:d} proyecto/s' +\
+                                'porque está/n mal formado/s')
         return projects
 
 
@@ -249,6 +249,9 @@ class Project(object):
         from os.path import join
         from db_connection import con_get
 
+        not_sqlites_dbtypes = [dbtype for dbtype in dbtypes \
+                               if dbtype != 'sqlite']
+
         # conexión a la base de datos
         dbtype = self.element_get('db').get('type').strip()
         con = con_get(dbtype, self.element_get('db').text.strip())
@@ -269,7 +272,7 @@ class Project(object):
         st = 'cod\ttipo\tfecha1\tfecha2\tnum_datos\txutm\tyutm\n'
         f_summary.write(f'{st}')
 
-        if dbtype != 'ms_access':
+        if dbtype == 'sqlite':
             date1 = date1.strftime('%YYYY-%mm-%dd')
             date2 = date2.strftime('%YYYY-%mm-%dd')
 
@@ -301,7 +304,7 @@ class Project(object):
 
             if only_upper_graph !=1:
                 min_date, max_date = Time_series.minmax_fechas(ts)
-                if dbtype == 'ms_access':
+                if dbtype in not_sqlites_dbtypes:
                     min_date = Project.strfecha_2_date(min_date)
                     max_date = Project.strfecha_2_date(max_date)
                 lower_ts = \
@@ -459,12 +462,13 @@ class Project(object):
 
         tmp = [row for row in cur]
         y_upper = np.array([row[1] for row in tmp])
-        if dbtype == 'ms_access':
+        if dbtype == 'ms_access' or dbtype == 'postgres':
             x_upper = [row[0].strftime('%Y-%m-%d') for row in tmp]
         elif dbtype == 'sqlite':
             x_upper = (row[0] for row in tmp)
         else:
-            raise ValueError(f'{dbtype} no es un tipo d bdd válido')
+            raise ValueError('xyts_project, ts_get,\n ' +\
+                             f' {dbtype} no es un tipo de db válido')
         return np.array(x_upper, dtype='datetime64'), y_upper
 
 
@@ -498,6 +502,9 @@ class Project(object):
         fname = self.p.find('master/file/name').text.strip()
         cols = self.p.findall('master/file/col')
         subs = [row[int(col.text)-1] for col in cols]
+        for i, subs1 in enumerate(subs):
+            if isinstance(subs1, str):
+                subs[i] = subs1.replace('.', '_')
         return fname.format(*subs)
 
 

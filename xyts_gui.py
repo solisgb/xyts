@@ -453,8 +453,9 @@ class GUI(tk.Frame):
         if not items:
             return
         db = self.projects[items[0]].element_get('db').text.strip()
+        db_type = self.projects[items[0]].element_get('db').get('type').strip()
         self.master.config(cursor="wait")
-        if not isfile(db):
+        if db_type in ('ms_access', 'sqlite') and not isfile(db):
             self.master.config(cursor="arrow")
             logging.append(f'No se encuentra el fichero {db}')
             tk.messagebox.showerror('', f'No se encuentra el fichero\n{db}')
