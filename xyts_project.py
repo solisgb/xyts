@@ -247,6 +247,7 @@ class Project(object):
         write_data: si 1 graba los datos de cada figura en un fichero
         """
         from os.path import join
+        from traceback import format_exc
         from db_connection import con_get
 
         not_sqlites_dbtypes = [dbtype for dbtype in dbtypes \
@@ -280,16 +281,17 @@ class Project(object):
             select = self.element_get('upper_ts/select').text.strip()
             cur.execute(select, (row_dm[icod], date1, date2))
             x_upper, y_upper = Project.ts_get(dbtype, cur)
+            yield(i+1, len(data_master))
             if x_upper.size < 2:
                 logging.append(f'El punto {row_dm[icod]} tiene ' +\
                                f'{x_upper.size:d} datos y no se hace' +\
                                f' gráfico', False)
-                yield(i+1, len(data_master))
                 continue
             ts = [Time_series(x_upper, y_upper, row_dm[icod])]
 
             st = self.line_to_summary(TIPO_MASTER, row_dm, x_upper, icod,
                                       ixutm, iyutm)
+
             f_summary.write(f'{st}\n')
 
             if only_master !=1:
@@ -324,9 +326,7 @@ class Project(object):
             try:
                 _ = plot_ts(title, ts, ylabels[0], dst, write_data,
                             lower_ts, ylabels[1])
-                yield(i+1, len(data_master))
             except Exception:
-                from traceback import format_exc
                 st = format_exc()
                 logging.append(st, False)
                 messagebox.showerror(self.__module__, st)
@@ -368,11 +368,30 @@ class Project(object):
         icod, ixutm, iyutm: índices del código del punto y sus coordenadas
             en row (ixutm, iyutm pueden ser None)
         """
+        st0 = f'{row[icod]}\t{tipo}'
+
+        if row[ixutm] is None:
+            st = f"{row[icod]} {tipo} has None x"
+            logging.append(st, False)
+            return st0
+
+        if row[iyutm] is None:
+            st = f"{row[icod]} {tipo} has None y"
+            logging.append(st, False)
+            return st0
+
+        if xts[0] is None:
+            st = f"{row[icod]} {tipo} has None x"
+            logging.append(st, False)
+            return st0
+
+        if xts[-1] is None:
+            st = f"{row[icod]} {tipo} has None y"
+            logging.append(st, False)
+            return st0
+
         st = f'{row[icod]}\t{tipo}\t{xts[0]}\t{xts[-1]}\t{xts.size:d}'
-        if ixutm and iyutm:
-            st = st + f'\t{row[ixutm]:0.0f}\t{row[iyutm]:0.0f}'
-        else:
-            st = st + f'\t\t'
+        st = st + f'\t{row[ixutm]:0.0f}\t{row[iyutm]:0.0f}'
         return st
 
 
@@ -433,8 +452,7 @@ class Project(object):
                 self.element_get(path_location).text.strip()
                 cur.execute(select, (cod,))
                 xyutm = cur.fetchone()
-                dist = sqrt((xy_dm[0] - xyutm[0])**2 + \
-                            (xy_dm[1] - xyutm[1])**2)
+                dist = self.__diste(xy_dm, xyutm)
                 leg = f'{cod}, {dist:0.0f} m'
             else:
                 xyutm = ['', '']
@@ -518,3 +536,15 @@ class Project(object):
         if len(y_axis_names) == 1:
             y_axis_names.append('')
         return y_axis_names
+
+
+    def __diste(self, xy_dm, xyutm):
+        """
+        Distancia euclídea
+        """
+        for t1 in (xy_dm, xyutm):
+            for t2 in t1:
+                if t2 is None:
+                   return -1.
+        d = sqrt((xy_dm[0] - xyutm[0])**2 + (xy_dm[1] - xyutm[1])**2)
+        return d
