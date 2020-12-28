@@ -212,12 +212,12 @@ class Plot_time_series():
         name, ext = splitext(dst)
         fo = open(name + '.xml', 'w')
         fo.write('<?xml version="1.0" encoding="windows-1252"?>\n')
-        fo.write(f'<fig>\n')
-        fo.write(f'<titulo>{title}</titulo>\n')
+        fo.write('<fig>\n')
+        fo.write('<titulo>{title}</titulo>\n')
         Plot_time_series.write_time_series_list(fo, ts1, ylabel1)
         if ts2:
             Plot_time_series.write_time_series_list(fo, ts2, ylabel2)
-        fo.write(f'</fig>\n')
+        fo.write('</fig>\n')
         fo.close()
 
 

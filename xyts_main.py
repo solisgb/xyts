@@ -11,16 +11,19 @@ Programa para hacer gráficos de series temporales que se graban en un fichero
     opcional y se puede presentar la evolución de otra variable en otros
     puntos
 """
-import littleLogging as logging
+mylogging = False
 
 
 if __name__ == "__main__":
 
-    try:
-        import traceback
-        from tkinter import Tk
-        from xyts_gui import GUI
+    import traceback
+    from tkinter import Tk
 
+    try:
+        import littleLogging as logging
+        mylogging = True
+        from xyts_gui import GUI
+        
         root = Tk()
         GUI(root)
 
@@ -34,4 +37,5 @@ if __name__ == "__main__":
         msg = traceback.format_exc()
         logging.append(f'Exception\n{msg}')
     finally:
-        logging.dump()
+        if mylogging:
+            logging.dump()
