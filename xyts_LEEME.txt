@@ -27,6 +27,12 @@ Los gráficos están agrupados en proyectos en el fichero xyts.xml; si quieres hac
 
 HISTORIAL DE VERSIONES
 
+15/02/2021
+1. Se añade el botón Actualizar lista
+
+15/02/2020
+1. El programa admite bases de datos postgres con psycop2
+
 7/12/2019
 1. Se pasa de utilizar pywin32 a usar pyodbc
 2. Se cambia el nombre del programa de dislin27 a xyts

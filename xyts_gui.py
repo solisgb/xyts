@@ -98,7 +98,7 @@ class GUI(tk.Frame):
         muestra el proyecto seleccionado
         """
         frm1 = tk.Frame(self.master, relief=tk.GROOVE, pady=2)
-        tk.Label(frm1, text = "Projectos -> seleccionado: ") \
+        tk.Label(frm1, text = "Projecto seleccionado: ") \
         .pack(side=tk.LEFT, anchor=tk.W)
         tk.Label(frm1, textvariable = self.selected_project_show) \
         .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
@@ -141,6 +141,9 @@ class GUI(tk.Frame):
                   .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X, padx=1)
         tk.Button(frm1, text="Quitar selección", padx=5, pady=2,
                   command=self.remove_selected_project, relief=tk.RIDGE) \
+                  .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X, padx=1)
+        tk.Button(frm1, text="Actualizar lista", padx=5, pady=2,
+                  command=self.reload_project, relief=tk.RIDGE) \
                   .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X, padx=1)
         frm1.pack(side=tk.TOP, anchor=tk.W, fill=tk.X, expand=tk.NO)
 
@@ -503,6 +506,15 @@ class GUI(tk.Frame):
         self.selected_project = TKINTNULL
         i = len(self.selected_project_show.get())
         self.selected_project_show.set(i*' ')
+
+
+    def reload_project(self):
+        """
+        lee los proyectos otra vez y actualiza el listado en
+        pantalla
+        """
+        self.remove_selected_project()
+        self.projects_in_listbox_set()
 
 
     def do_graphs(self):
