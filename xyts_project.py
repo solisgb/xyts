@@ -232,7 +232,8 @@ class Project(object):
 
 
     def xygraphs(self, dir_plots: str, date1: date, date2: date,
-                 only_master: int, only_upper_graph: int, write_data: int):
+                 only_master: int, only_upper_graph: int, write_data: int,
+                 tendencia: int):
         """
         Se ejecutan los select y se preparan los datos para llamar a las
             funciones de matplotlib que dibuja los graficos XY
@@ -245,6 +246,7 @@ class Project(object):
             only_upper_graph es 1 no se representarán los puntos relacionados
             con el master en el gráfico inferior
         write_data: si 1 graba los datos de cada figura en un fichero
+        tendencia: si 1 graba la tendencia de la serie principal
         """
         from os.path import join
         from traceback import format_exc
@@ -285,7 +287,7 @@ class Project(object):
             if x_upper.size < 2:
                 logging.append(f'El punto {row_dm[icod]} tiene ' +\
                                f'{x_upper.size:d} datos y no se hace' +\
-                               f' gráfico', False)
+                               'el gráfico', False)
                 continue
             ts = [Time_series(x_upper, y_upper, row_dm[icod])]
 
@@ -324,7 +326,7 @@ class Project(object):
             ylabels = self.y_axis_names_get()
 
             try:
-                _ = plot_ts(title, ts, ylabels[0], dst, write_data,
+                _ = plot_ts(title, ts, ylabels[0], dst, write_data, tendencia,
                             lower_ts, ylabels[1])
             except Exception:
                 st = format_exc()

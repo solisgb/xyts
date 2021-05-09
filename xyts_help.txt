@@ -15,6 +15,7 @@ Botones de acción*****************************
 Seleccionar. Permite seleccionar uno de los proyectos que aparecen definidos.
 Ver selección. Se muestran las características del proyecto seleccionado en formato xml.
 Quitar selección. Deselecciona un proyecto previamente seleccionado.
+Actualizar lista. Permite modificar el fichero xyts.xml y actualizar sus proyectos sin salir del progama.
 Ejecutar. Se inicia el proceso de creación de ficheros de gráficos del proyecto seleccionado.
 Ver log. Muestra las incidencias ocurridas durante la generación de los gráficos.
 Ayuda. Permite ver este contenido.
@@ -26,5 +27,6 @@ Rango de fechas de los gráficos. Indica el rango de fechas que se desea represen
 Solo serie principal. El punto principal del gráfico puede tener puntos asociados con datos de la misma variable; si la casilla está activda solo se representarán los datos del gráfico principal
 Gráfico inferior inactivo. El punto principal del gráfico puede tener puntos asociados datos de otros puntos con otra variable; si esta opción está activada solo se presenta el gráfico superior.
 Grabar datos. Si la casilla está habilitada se graba un fichero por figura con los datos representados.
+Tendencia. Permite representar una línea de tendencia polinómica de la serie principal en el gráfico superior. El grado del polinomio es igual a la longitud de la serie dividida por 2.  
 Interrumpir la ejecución del programa cuando se ha realizado el gráfico n, siendo n un número entero. Esta opción se utiliza principalmente cuando se desea ver un gráfico o conjunto de gráficos sin necesidad de sacar todos, generalmente cuando se incorpora un nuevo proyecto al fichero xyts.xml.
 Después de la primera interrupción, volver a realizar una interrupción cada m gráficos, siendo m un número entero

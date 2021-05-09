@@ -11,6 +11,7 @@ Programa para hacer gráficos de series temporales que se graban en un fichero
     opcional y se puede presentar la evolución de otra variable en otros
     puntos
 """
+
 mylogging = False
 
 
@@ -23,7 +24,7 @@ if __name__ == "__main__":
         import littleLogging as logging
         mylogging = True
         from xyts_gui import GUI
-        
+
         root = Tk()
         GUI(root)
 

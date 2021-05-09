@@ -75,9 +75,13 @@ class Time_series():
 
 
 class Plot_time_series():
+    """
+    Llama a la función que dibuja uno o dos gráficos por figura
+    """
 
     def __init__(self, title: str, ts1: [], ylabel1: str, dst: str,
-                 write_data: int, ts2: list=[], ylabel2: str=''):
+                 write_data: int, tendencia: int, ts2: list=[],
+                 ylabel2: str=''):
         """
         Llama a la función que dibuja uno o dos gráficos por figura
         args
@@ -85,6 +89,7 @@ class Plot_time_series():
         title: título de la figura
         ylabel1: nombre del eje de las Y upper graph
         dst: dirección y nombre del fichero a grabar
+        tendencia: si 1 graba la tenencia de la srie principal
         ts2: lista de Time_series que se dibujan en el gráfico inferior; puede
             valer []
         ylabel2: nombre del eje de las Y del gráfico inferior, si ts2 no es []
@@ -104,7 +109,8 @@ class Plot_time_series():
 
 
     @staticmethod
-    def xy_ts_plot_1g(title: str, tsu: list, ylabelu: str, dst: str):
+    def xy_ts_plot_1g(title: str, tsu: list, ylabelu: str, dst: str,
+                      tendencia: int):
         """
         Dibuja una figura con 1 gráfico (axis) xy
         args
@@ -113,6 +119,8 @@ class Plot_time_series():
         ylabelu: label eje y gráfico superior
         tsl: lista de objetos Time_series para el gráfico inferior
         dst: nombre fichero destino (debe incluir la extensión png)
+        xygraphs
+        tendencia: si 1 dibuja una línea de tendencia de grado len(tsu)/2
         """
         # parámetros específicos
         mpl.rc('font', size=8)
@@ -132,6 +140,8 @@ class Plot_time_series():
 
         for ts1 in tsu:
             ax.plot(ts1.x, ts1.y, label=ts1.legend)
+            if i == 0 and tendencia == 1:
+                drawn_polynomial(ts1, ax1)
             ax.legend()
 
         fig.savefig(dst)
@@ -141,7 +151,7 @@ class Plot_time_series():
 
     @staticmethod
     def xy_ts_plot_2g(title: str, tsu: list, ylabelu: str, tsl: list,
-                      ylabell: str, dst: str):
+                      ylabell: str, dst: str, tendencia: int):
         """
         Dibuja una figura con 2 gráfico (axis) xy de una o más series cada uno
             que comparten el eje x. El superior es el principal y ocupa 2/3 de
@@ -152,9 +162,14 @@ class Plot_time_series():
         ylabelu: label eje y gráfico superior
         tsl: lista de objetos Time_series para el gráfico inferior
         dst: nombre fichero destino (debe incluir la extensión png)
+        tendencia: si 1 dibula una linea de regresión en la
+            serie principal del gráfico superior
         """
         import matplotlib.pyplot as plt
         import matplotlib as mpl
+        import matplotlib.dates as mdates
+        from sklearn.linear_model import LinearRegression
+        from sklearn.preprocessing import PolynomialFeatures
 
         # parámetros específicos
         mpl.rc('font', size=8)
@@ -177,10 +192,11 @@ class Plot_time_series():
 
         fig.autofmt_xdate()
 
-        for ts1 in tsu:
+        for i, ts1 in enumerate(tsu):
             ax1.plot(ts1.x, ts1.y, label=ts1.legend)
+            if i == 0 and tendencia == 1:
+                drawn_polynomial(ts1, ax1)
             ax1.legend()
-
         # subplot inferior (stem)
         for ts1 in tsl:
             markerline, _, _ = ax2.stem(ts1.x, ts1.y, markerfmt=' ',
@@ -192,6 +208,32 @@ class Plot_time_series():
         fig.savefig(dst)
         plt.close('all')
         plt.rcdefaults()
+
+
+    @staticmethod
+    def drawn_polynomial(ts1, ax1):
+        """
+        drawns an polynomial for one time series
+        arguments
+        ts1 : object time series
+        ax1 : axis
+        Returns
+        -------
+        None.
+
+        """
+        xd = mdates.date2num(ts1.x)
+        xr = np.array(xd).reshape((-1, 1))
+        pdegree = round(len(xd)/2)
+        transformer = PolynomialFeatures(degree=pdegree,
+                                         include_bias=True)
+        transformer.fit(xr)
+        xr2 = transformer.transform(xr)
+        model = LinearRegression().fit(xr2, ts1.y)
+        # r_sq = model.score(xr2, ts1.y)
+        y_pred = model.predict(xr2)
+        ax1.plot(ts1.x, y_pred, linestyle=':',
+                 label=f'poly deg {pdegree}')
 
 
     @staticmethod

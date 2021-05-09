@@ -1,37 +1,40 @@
 <?xml version="1.0" encoding="iso-8859-1" standalone="yes"?>
 <!-- Proyectos que utiliza el programa xyts
     El programa graba figuras xy de series temporales
+	Recuerda que al ser un fichero xml, si las select llevan el signo > debe sustituirse pos &gt;
+	y el signo < por &lt;
  -->
 <xyts>
-	<project name="CHS CNP en Red piezométrica actual con prec. mensual en masub">
-		<db type="ms_access">C:\Users\solis\Documents\DB\Ipasub97.mdb</db>
+	<project name="CHS CNP sondeos seleccionados en el fichero xyts.xml">
+		<db type="postgres">ipa</db>
 		<graph>
 			<y_axis_name>CNP m s.n.m.</y_axis_name>
-			<y_axis_name>P dmm/d</y_axis_name>
+			<y_axis_name>P dmm/m</y_axis_name>
 			<axis_type>plot</axis_type>
 			<axis_type>stem</axis_type>
 		</graph>
 		<master>
 			<select>
-			SELECT ACUIFEROS.MASUBn, ACUIFEROS.NOMACU, IPA1.COD, IPA1.X_UTM, IPA1.Y_UTM, IPA1.TOPONIMIA
-			FROM (ACUIFEROS INNER JOIN IPA1 ON ACUIFEROS.COD_ACU = IPA1.ACUIFERO) INNER JOIN IPA1_RED_CONTROL ON IPA1.COD = IPA1_RED_CONTROL.codigo
-			WHERE IPA1_RED_CONTROL.red='CHSP19' AND IPA1_RED_CONTROL.fecha_baja Is Null
-			ORDER BY ACUIFEROS.MASUBn, ACUIFEROS.NOMACU, IPA1.COD;
+			select a.masub , a.nomacu, i1.cod, st_x(i1.geom), st_y(i1.geom)
+			from ipas.ipa1 i1
+				left join ipas.acuiferos a on (i1.acuifero = a.cod_acu) 
+			where a.cod_acu = '095'
+			order by a.masub , a.nomacu, i1.cod
 			</select>
 			<col type='cod'>3</col>
 			<col type='xutm'>4</col>
 			<col type='yutm'>5</col>
 			<title>
-				<text>Evolución de la cota piezométrica en el sondeo {}</text>
+				<text>Evolución piezométrica en el sondeo {}</text>
 				<col>3</col>
 			</title>
 			<title>
-				<text>MASub 070.{:03d}. Acuífero {}</text>
+				<text>MASUB {}. Acuífero {}</text>
 				<col>1</col>
 				<col>2</col>
 			</title>
 			<file>
-				<name>{:03d}_{}_{}</name>
+				<name>{}_{}_{}</name>
 				<col>1</col>
 				<col>2</col>
 				<col>3</col>
@@ -39,50 +42,72 @@
 		</master>
 		<upper_ts>
 			<select>
-			SELECT IPA2.FECHA, IPA1.Z-IPA2.PNP AS CNP FROM IPA1 INNER JOIN IPA2 ON IPA1.COD=IPA2.COD WHERE IPA1.COD=? AND IPA2.FECHA&gt;=? AND IPA2.FECHA&lt;=? ORDER BY IPA2.FECHA;	
+			select ipa2.fecha, ipa1.z-ipa2.pnp as cnp 
+            from ipas.ipa1 
+                join ipas.ipa2 using(cod) 
+            where ipa1.cod=%s and ipa2.fecha&gt;=%s and ipa2.fecha&lt;=%s and ipa2.situacion!='no' 
+            order by ipa2.fecha;
 			</select>
 		</upper_ts>
 		<upper_relation>
-			<select>SELECT COD2 FROM IPA1_SELF WHERE COD1=? AND ACTIVO=1 ORDER BY COD2;</select>
-			<select_location>SELECT X_UTM, Y_UTM FROM IPA1 WHERE COD=?;</select_location>
+			<select>
+            select cod2 
+            from ipas.ipa1_self 
+            where cod1=%s order by cod2;
+            </select>
+			<select_location>select st_x(geom) x, st_y(geom) y from ipas.ipa1 where cod=%s;</select_location>
 		</upper_relation>
 		<lower_relation>
-			<select>SELECT nmasub FROM ipa1_masub WHERE dh=7 AND COD=?;</select>
+			<select>select codmasac from ipas.ipa1_pmes_masubc where cod=%s;</select>
 		</lower_relation>
 		<lower_ts>
-			<select>SELECT fecha, valor FROM masub_pm_idw WHERE fid=? AND fecha&gt;=? AND fecha&lt;=? ORDER BY fecha;</select>
+			<select>
+			select fecha, value
+			from met.interpolated_tseries 
+			where fid=%s and variable='pmes' and fecha&gt;=%s and fecha&lt;=%s
+			order by fecha;
+            </select>
 		</lower_ts>
 	</project>
-	<project name="CHS Aforos Red OPH con prec. mensual en masub">
-		<db type="ms_access">C:\Users\solis\Documents\DB\Ipasub97.mdb</db>
+	<project name="CHS CNP red piezométrica oficial: sondeos medidos en 2020">
+		<db type="postgres">ipa</db>
 		<graph>
-			<y_axis_name>l/seg</y_axis_name>
-			<y_axis_name>P dmm/d</y_axis_name>
+			<y_axis_name>CNP m s.n.m.</y_axis_name>
+			<y_axis_name>P dmm/m</y_axis_name>
 			<axis_type>plot</axis_type>
 			<axis_type>stem</axis_type>
 		</graph>
 		<master>
 			<select>
-			SELECT ACUIFEROS.MASUBn, ACUIFEROS.NOMACU, IPA1.COD, IPA1.X_UTM, IPA1.Y_UTM, IPA1.TOPONIMIA
-			FROM (ACUIFEROS INNER JOIN IPA1 ON ACUIFEROS.COD_ACU = IPA1.ACUIFERO) INNER JOIN IPA1_RED_CONTROL ON IPA1.COD = IPA1_RED_CONTROL.codigo
-			WHERE (IPA1_RED_CONTROL.red='H1' Or IPA1_RED_CONTROL.red='H5' Or IPA1_RED_CONTROL.red='H8' Or IPA1_RED_CONTROL.red='H9') AND IPA1_RED_CONTROL.fecha_baja Is Null
-			ORDER BY ACUIFEROS.MASUBn, ACUIFEROS.NOMACU, IPA1.COD;
+			with s1 as (
+			select i2.cod 
+			from ipas.ipa2 i2 
+			where i2.fecha&gt;'2020-01-01' and i2.fecha&lt;'2021-01-01' and i2.proyecto = 'chs_red_pz' and i2.situacion!='no'
+			group by i2.cod
+			)
+			select a.masub , a.nomacu, i1.cod, st_x(i1.geom), st_y(i1.geom), r.cod_red
+			from ipas.ipa1 i1
+				join s1 using(cod)
+				left join ipas.ipa1_red_control r using(cod)
+				left join ipas.acuiferos a on (i1.acuifero=a.cod_acu)
+			where r.red='chspz'
+			order by a.masubn , a.nomacu, i1.cod;
 			</select>
 			<col type='cod'>3</col>
 			<col type='xutm'>4</col>
 			<col type='yutm'>5</col>
 			<title>
-				<text>{} ({})</text>
-				<col>6</col>
+				<text>Evolución piezométrica en el sondeo {} ({})</text>
 				<col>3</col>
+				<col>6</col>
 			</title>
 			<title>
-				<text>Acuífero {} (MASUB 07.{:03d})</text>
-				<col>2</col>
+				<text>MASUB {}. Acuífero {}</text>
 				<col>1</col>
+				<col>2</col>
 			</title>
 			<file>
-				<name>{:03d}_{}_{}</name>
+				<name>{}_{}_{}</name>
 				<col>1</col>
 				<col>2</col>
 				<col>3</col>
@@ -90,18 +115,297 @@
 		</master>
 		<upper_ts>
 			<select>
-			SELECT IPA3.FECHA, IPA3.CAUDAL_LS FROM IPA3 WHERE IPA3.COD=? AND IPA3.FECHA&gt;=? AND IPA3.FECHA&lt;=? ORDER BY IPA3.FECHA;	
+			select ipa2.fecha, ipa1.z-ipa2.pnp as cnp 
+            from ipas.ipa1 
+                join ipas.ipa2 using(cod) 
+            where ipa1.cod=%s and ipa2.fecha&gt;=%s and ipa2.fecha&lt;=%s and ipa2.situacion!='no' 
+            order by ipa2.fecha;
+			</select>
+		</upper_ts>
+		<upper_relation>
+			<select>
+            select cod2 
+            from ipas.ipa1_self 
+            where cod1=%s and activo=1 order by cod2;
+            </select>
+			<select_location>select st_x(geom) x, st_y(geom) y from ipas.ipa1 where cod=%s;</select_location>
+		</upper_relation>
+		<lower_relation>
+			<select>select codmasac from ipas.ipa1_pmes_masubc where cod=%s;</select>
+		</lower_relation>
+		<lower_ts>
+			<select>
+			select fecha, value
+			from met.interpolated_tseries 
+			where fid=%s and variable='pmes' and fecha&gt;=%s and fecha&lt;=%s
+			order by fecha;
+            </select>
+		</lower_ts>
+	</project>
+	<project name="CHS CNP red piezométrica oficial: prec. mensual en masub">
+		<db type="postgres">ipa</db>
+		<graph>
+			<y_axis_name>CNP m s.n.m.</y_axis_name>
+			<y_axis_name>P dmm/m</y_axis_name>
+			<axis_type>plot</axis_type>
+			<axis_type>stem</axis_type>
+		</graph>
+		<master>
+			<select>
+			select acuiferos.masub, acuiferos.nomacu, ipa1.cod, ipa1.x_utm, ipa1.y_utm, ipa1_red_control.cod_red
+			from ipas.ipa1
+				left join ipas.acuiferos on acuiferos.cod_acu = ipa1.acuifero 
+				left join ipas.ipa1_red_control using(cod) 
+			where ipa1_red_control.red='chspz' and ipa1_red_control.fecha_baja is null
+			order by acuiferos.masubn, acuiferos.nomacu, ipa1.cod;
+			</select>
+			<col type='cod'>3</col>
+			<col type='xutm'>4</col>
+			<col type='yutm'>5</col>
+			<title>
+				<text>Evolución piezométrica en el sondeo {} ({})</text>
+				<col>3</col>
+				<col>6</col>
+			</title>
+			<title>
+				<text>MASUB {}. Acuífero {}</text>
+				<col>1</col>
+				<col>2</col>
+			</title>
+			<file>
+				<name>{}_{}_{}</name>
+				<col>1</col>
+				<col>2</col>
+				<col>3</col>
+			</file>
+		</master>
+		<upper_ts>
+			<select>
+			select ipa2.fecha, ipa1.z-ipa2.pnp as cnp 
+            from ipas.ipa1 
+                inner join ipas.ipa2 on ipa1.cod=ipa2.cod 
+            where ipa1.cod=%s and ipa2.fecha&gt;=%s and ipa2.fecha&lt;=%s and ipa2.situacion!='no'
+            order by ipa2.fecha;
+			</select>
+		</upper_ts>
+		<upper_relation>
+			<select>
+            select cod2 
+            from ipas.ipa1_self 
+            where cod1=%s and activo=1 order by cod2;
+            </select>
+			<select_location>select x_utm, y_utm from ipas.ipa1 where cod=%s;</select_location>
+		</upper_relation>
+		<lower_relation>
+			<select>select masub from ipas.ipa1 where cod=%s;</select>
+		</lower_relation>
+		<lower_ts>
+			<select>
+            select fecha, value
+            from met.interpolated_tseries 
+            where fid=%s and fecha&gt;=%s and fecha&lt;=%s
+            order by fecha;
+            </select>
+		</lower_ts>
+	</project>
+	<project name="CHS CNP red piezométrica oficial medida por INTECSA hasta abr 2016">
+		<db type="postgres">ipa</db>
+		<graph>
+			<y_axis_name>CNP m s.n.m.</y_axis_name>
+			<y_axis_name>P dmm/m</y_axis_name>
+			<axis_type>plot</axis_type>
+			<axis_type>stem</axis_type>
+		</graph>
+		<master>
+			<select>
+            select acuiferos.masub, acuiferos.nomacu, ipa1.cod, ipa1.x_utm, ipa1.y_utm, ipa1_red_control.codigochs
+            from ipas.ipa1
+                left join ipas.acuiferos on acuiferos.cod_acu = ipa1.acuifero 
+                left join ipas.ipa1_red_control on ipa1_red_control.codigo = ipa1.cod 
+            where ipa1_red_control.red='p' and (ipa1_red_control.fecha_baja is null or  or ipa1_red_control.fecha_baja&lt;'2016-05-01')
+            order by acuiferos.masubn, acuiferos.nomacu, ipa1.cod;
+			</select>
+			<col type='cod'>3</col>
+			<col type='xutm'>4</col>
+			<col type='yutm'>5</col>
+			<title>
+				<text>Evolución de la cota piezométrica en el sondeo {} ({})</text>
+				<col>3</col>
+				<col>6</col>
+			</title>
+			<title>
+				<text>MASUB {}. Acuífero {}</text>
+				<col>1</col>
+				<col>2</col>
+			</title>
+			<file>
+				<name>{}_{}_{}</name>
+				<col>1</col>
+				<col>2</col>
+				<col>3</col>
+			</file>
+		</master>
+		<upper_ts>
+			<select>
+			select ipa2.fecha, ipa1.z-ipa2.pnp as cnp and ipa2.situacion!='no' 
+            from ipas.ipa1 
+                inner join ipas.ipa2 on ipa1.cod=ipa2.cod 
+            where ipa1.cod=%s and ipa2.fecha&gt;=%s and ipa2.fecha&lt;=%s 
+            order by ipa2.fecha;
+			</select>
+		</upper_ts>
+		<upper_relation>
+			<select>
+            select cod2 
+            from ipas.ipa1_self 
+            where cod1=%s and activo=1 order by cod2;
+            </select>
+			<select_location>select x_utm, y_utm from ipas.ipa1 where cod=%s;</select_location>
+		</upper_relation>
+		<lower_relation>
+			<select>select nmasub from ipas.ipa1_masub where dh=7 and cod=%s;</select>
+		</lower_relation>
+		<lower_ts>
+			<select>
+            select fecha, pm 
+            from ipas.masubc_pm 
+            where dh=7 and nmasub=%s and fecha&gt;=%s and fecha&lt;=%s
+            order by fecha;
+            </select>
+		</lower_ts>
+	</project>
+	<project name="CHS PNP red piezométrica oficial medida por INTECSA hasta abr 2016">
+		<db type="postgres">ipa</db>
+		<graph>
+			<y_axis_name>PNP m s.n.m.</y_axis_name>
+			<y_axis_name>P dmm/d</y_axis_name>
+			<axis_type>plot</axis_type>
+			<axis_type>stem</axis_type>
+		</graph>
+		<master>
+			<select>
+			select acuiferos.masub, acuiferos.nomacu, ipa1.cod, ipa1.x_utm, ipa1.y_utm, ipa1_red_control.cod_red
+			from ipas.ipa1
+				left join ipas.acuiferos on acuiferos.cod_acu = ipa1.acuifero 
+				left join ipas.ipa1_red_control using(cod) 
+			where ipa1_red_control.red='p' and (ipa1_red_control.fecha_baja is null or ipa1_red_control.fecha_baja&lt;'2016-05-01')
+			order by acuiferos.masubn, acuiferos.nomacu, ipa1.cod;
+			</select>
+			<col type='cod'>3</col>
+			<col type='xutm'>4</col>
+			<col type='yutm'>5</col>
+			<title>
+				<text>Evolución de la profundidad del agua en el sondeo {} ({})</text>
+				<col>3</col>
+				<col>6</col>
+			</title>
+			<title>
+				<text>MASUB {}. Acuífero {}</text>
+				<col>1</col>
+				<col>2</col>
+			</title>
+			<file>
+				<name>{}_{}_{}</name>
+				<col>1</col>
+				<col>2</col>
+				<col>3</col>
+			</file>
+		</master>
+		<upper_ts>
+			<select>
+			select ipa2.fecha, ipa2.pnp as pnp and ipa2.situacion!='no' 
+            from ipas.ipa1 
+                inner join ipas.ipa2 on ipa1.cod=ipa2.cod 
+            where ipa1.cod=%s and ipa2.fecha&gt;=%s and ipa2.fecha&lt;=%s 
+            order by ipa2.fecha;
+			</select>
+		</upper_ts>
+		<upper_relation>
+			<select>
+            select cod2 
+            from ipas.ipa1_self 
+            where cod1=%s and activo=1 order by cod2;
+            </select>
+			<select_location>select x_utm, y_utm from ipas.ipa1 where cod=%s;</select_location>
+		</upper_relation>
+		<lower_relation>
+			<select>select nmasub from ipas.ipa1_masub where dh=7 and cod=%s;</select>
+		</lower_relation>
+		<lower_ts>
+			<select>
+            select fecha, pm 
+            from ipas.masubc_pm 
+            where dh=7 and nmasub=%s and fecha&gt;=%s and fecha&lt;=%s
+            order by fecha;
+            </select>
+		</lower_ts>
+	</project>
+	<project name="CHS Aforos Red OPH medidos en un rango de fechas especificado en el fichero xyts.xml">
+		<db type="postgres">ipa</db>
+		<graph>
+			<y_axis_name>l/s</y_axis_name>
+			<y_axis_name>P dmm/d</y_axis_name>
+			<axis_type>plot</axis_type>
+			<axis_type>stem</axis_type>
+		</graph>
+		<master>
+			<select>
+			with s1 as (
+			select cod 
+			from ipas.ipa3
+			where proyecto='42173' and fecha&gt;'2020-11-01' and fecha&lt;'2020-12-15'
+			)
+			select a.masub , a.nomacu , i1.cod, st_x(i1.geom) x, st_y(i1.geom) y, i1.toponimia , rc.descri red
+			from ipas.ipa1 i1
+				join s1 using(cod)
+				left join ipas.acuiferos a on (i1.acuifero=a.cod_acu)
+				left join ipas.ipa1_red_control irc using(cod)
+				join ipas.red_control rc using (red)
+			where (irc.red='h1' or irc.red='h5' or irc.red='h8' or irc.red='h9')
+			order by a.masub , a.nomacu , i1.cod;
+			</select>
+			<col type='cod'>3</col>
+			<col type='xutm'>4</col>
+			<col type='yutm'>5</col>
+			<title>
+				<text>{} ({}) red: {}</text>
+				<col>6</col>
+				<col>3</col>
+				<col>7</col>
+			</title>
+			<title>
+				<text>Acuífero {} (MASUB {})</text>
+				<col>2</col>
+				<col>1</col>
+			</title>
+			<file>
+				<name>{}_{}_{}</name>
+				<col>1</col>
+				<col>2</col>
+				<col>3</col>
+			</file>
+		</master>
+		<upper_ts>
+			<select>
+			select fecha, caudal_ls from ipas.ipa3 where cod=%s and fecha&gt;=%s and fecha&lt;=%s order by fecha;	
 			</select>
 		</upper_ts>
 		<lower_relation>
-			<select>SELECT nmasub FROM ipa1_masub WHERE dh=7 AND COD=?;</select>
+			<select>
+			select codmasac from ipas.ipa1_pmes_masubc where cod=%s; 
+			</select>
 		</lower_relation>
 		<lower_ts>
-			<select>SELECT fecha, valor FROM masub_pm_idw WHERE fid=? AND fecha&gt;=? AND fecha&lt;=? ORDER BY fecha;</select>
+			<select>
+			select fecha, value
+			from met.interpolated_tseries 
+			where fid=%s and variable='pmes' and fecha&gt;=%s and fecha&lt;=%s
+			order by fecha;
+			</select>
 		</lower_ts>
 	</project>
-	<project name="CHS PNP en Red OPH humedales con prec. mensual en masub">
-		<db type="ms_access">C:\Users\solis\Documents\DB\Ipasub97.mdb</db>
+	<project name="CHS CNP Red OPH sondeos de manantiales (fechas en xml) con prec. mensual en masub">
+		<db type="postgres">ipa</db>
 		<graph>
 			<y_axis_name>PNP m</y_axis_name>
 			<y_axis_name>P dmm/d</y_axis_name>
@@ -110,25 +414,31 @@
 		</graph>
 		<master>
 			<select>
-			SELECT ACUIFEROS.MASUBn, ACUIFEROS.NOMACU, IPA1.COD, IPA1.X_UTM, IPA1.Y_UTM, IPA1.TOPONIMIA
-			FROM (ACUIFEROS INNER JOIN IPA1 ON ACUIFEROS.COD_ACU = IPA1.ACUIFERO) INNER JOIN IPA1_RED_CONTROL ON IPA1.COD = IPA1_RED_CONTROL.codigo
-			WHERE IPA1_RED_CONTROL.RED='H4' AND IPA1_RED_CONTROL.fecha_baja Is Null
-			ORDER BY ACUIFEROS.MASUBn, ACUIFEROS.NOMACU, IPA1.COD;
+			select a.masub, a.nomacu, i1.cod, i1.toponimia, rc.descri red, 
+				st_x(i1.geom) x, st_y(i1.geom) y
+			from ipas.ipa1 i1
+				left join ipas.acuiferos a on (i1.acuifero=a.cod_acu)
+				join ipas.ipa2 i2 using(cod)
+				join ipas.ipa1_red_control irc using(cod)
+				join ipas.red_control rc using(red)
+			where i2.proyecto='42173' and irc.red = 'h12' and i2.fecha&gt;'2020-11-01' and i2.fecha&lt;'2020-12-05'
+			order by a.masub, a.nomacu , i1.cod, rc.descri;
 			</select>
 			<col type='cod'>3</col>
-			<col type='xutm'>4</col>
-			<col type='yutm'>5</col>
+			<col type='xutm'>6</col>
+			<col type='yutm'>7</col>
 			<title>
-				<text>Evolución de la profundidad del agua en el sondeo {}</text>
+				<text>Cota piezométrica en el sondeo {} ({})</text>
 				<col>3</col>
+				<col>4</col>
 			</title>
 			<title>
-				<text>Acuífero {} (MASUB 07.{:03d})</text>
+				<text>Acuífero {} (MASUB {})</text>
 				<col>2</col>
 				<col>1</col>
 			</title>
 			<file>
-				<name>{:03d}_{}_{}</name>
+				<name>{}_{}_{}</name>
 				<col>1</col>
 				<col>2</col>
 				<col>3</col>
@@ -136,14 +446,616 @@
 		</master>
 		<upper_ts>
 			<select>
-			SELECT IPA2.FECHA, IPA2.PNP FROM IPA2 WHERE IPA2.COD=? AND IPA2.FECHA&gt;=? AND IPA2.FECHA&lt;=? ORDER BY IPA2.FECHA;	
+			select i2.fecha, i1.z-i2.pnp cnp 
+            from ipas.ipa1 i1
+                join ipas.ipa2 i2 using(cod) 
+            where i1.cod=%s and i2.fecha&gt;=%s and i2.fecha&lt;=%s and i2.situacion!='no' 
+            order by i2.fecha;
 			</select>
 		</upper_ts>
 		<lower_relation>
-			<select>SELECT nmasub FROM ipa1_masub WHERE dh=7 AND COD=?;</select>
+			<select>select codmasac from ipas.ipa1_pmes_masubc where cod=%s;</select>
 		</lower_relation>
 		<lower_ts>
-			<select>SELECT fecha, valor FROM masub_pm_idw WHERE fid=? AND fecha&gt;=? AND fecha&lt;=? ORDER BY fecha;</select>
+			<select>
+			select fecha, value
+			from met.interpolated_tseries 
+			where fid=%s and variable='pmes' and fecha&gt;=%s and fecha&lt;=%s
+			order by fecha;
+			</select>
+		</lower_ts>
+	</project>
+	<project name="CHS PNP en Red OPH humedales (fechas en xml) con prec. mensual en masub">
+		<db type="postgres">ipa</db>
+		<graph>
+			<y_axis_name>PNP m</y_axis_name>
+			<y_axis_name>P dmm/d</y_axis_name>
+			<axis_type>plot</axis_type>
+			<axis_type>stem</axis_type>
+		</graph>
+		<master>
+			<select>
+			select a.masub, a.nomacu, i1.cod, i1.toponimia, rc.descri red, 
+				st_x(i1.geom) x, st_y(i1.geom) y
+			from ipas.ipa1 i1
+				left join ipas.acuiferos a on (i1.acuifero=a.cod_acu)
+				join ipas.ipa2 i2 using(cod)
+				join ipas.ipa1_red_control irc using(cod)
+				join ipas.red_control rc using(red)
+			where i2.proyecto='42173' and irc.red = 'h4' and i2.fecha&gt;'2020-11-01' and i2.fecha&lt;'2020-12-05'
+			order by a.masub, a.nomacu , i1.cod, rc.descri;
+			</select>
+			<col type='cod'>3</col>
+			<col type='xutm'>6</col>
+			<col type='yutm'>7</col>
+			<title>
+				<text>Profundidad del agua en el sondeo {} ({})</text>
+				<col>3</col>
+				<col>4</col>
+			</title>
+			<title>
+				<text>Acuífero {} (MASUB {})</text>
+				<col>2</col>
+				<col>1</col>
+			</title>
+			<file>
+				<name>{}_{}_{}</name>
+				<col>1</col>
+				<col>2</col>
+				<col>3</col>
+			</file>
+		</master>
+		<upper_ts>
+			<select>
+			select fecha, pnp from ipas.ipa2 where cod=%s and fecha&gt;=%s and fecha&lt;=%s order by fecha;	
+			</select>
+		</upper_ts>
+		<lower_relation>
+			<select>select codmasac from ipas.ipa1_pmes_masubc where cod=%s;</select>
+		</lower_relation>
+		<lower_ts>
+			<select>
+			select fecha, value
+			from met.interpolated_tseries 
+			where fid=%s and variable='pmes' and fecha&gt;=%s and fecha&lt;=%s
+			order by fecha;
+			</select>
+		</lower_ts>
+	</project>
+	<project name="CHS altura de escala Red OPH lagunas (fechas en xml) con prec. mensual en masub">
+		<db type="postgres">ipa</db>
+		<graph>
+			<y_axis_name>H m</y_axis_name>
+			<y_axis_name>P dmm/mes</y_axis_name>
+			<axis_type>plot</axis_type>
+			<axis_type>stem</axis_type>
+		</graph>
+		<master>
+			<select>
+			select a.masub, a.nomacu , i1.cod, st_x(i1.geom) x, st_y(i1.geom) y, i1.toponimia
+			from ipas.ipa1 i1
+				left join ipas.acuiferos a on(i1.acuifero=a.cod_acu)
+				join ipas.ipa2_h i2 using(cod)
+			where i2.proyecto = '42173' and i2.fecha &gt;='2020-11-01' and i2.fecha &lt;='2020-12-05'
+			order by a.masub, a.nomacu , i1.cod;
+			</select>
+			<col type='cod'>3</col>
+			<col type='xutm'>4</col>
+			<col type='yutm'>5</col>
+			<title>
+				<text>Altura de agua en la escala {} ({})</text>
+				<col>3</col>
+				<col>6</col>
+			</title>
+			<title>
+				<text>Acuífero {} (MASUB {})</text>
+				<col>2</col>
+				<col>1</col>
+			</title>
+			<file>
+				<name>{}_{}_{}</name>
+				<col>1</col>
+				<col>2</col>
+				<col>3</col>
+			</file>
+		</master>
+		<upper_ts>
+			<select>
+			select fecha, h from ipas.ipa2_h where cod=%s and fecha&gt;=%s and fecha&lt;=%s order by fecha;	
+			</select>
+		</upper_ts>
+		<lower_relation>
+			<select>
+			select codmasac from ipas.ipa1_pmes_masubc where cod=%s;
+			</select>
+		</lower_relation>
+		<lower_ts>
+			<select>
+			select fecha, value
+			from met.interpolated_tseries
+			where fid=%s and variable='pmes' and fecha&gt;=%s and fecha&lt;=%s
+			order by fecha;
+			</select>
+		</lower_ts>
+	</project>
+	<project name="CRCC CNP Seguimiento ambiental 2019-2020">
+		<db type="postgres">ipa</db>
+		<graph>
+			<y_axis_name>CNP m s.n.m.</y_axis_name>
+			<y_axis_name>P mm/d</y_axis_name>
+			<axis_type>plot</axis_type>
+			<axis_type>stem</axis_type>
+		</graph>
+		<master>
+			<select>
+			select distinct i1.gid, i1.nomacu , i1.z , st_x(i1.geom) x, st_y(i1.geom) y
+			from ipasr.ipa1_aquif i1
+				join ipasr.ipa2_aquif i2 using(gid)
+			where i2.fecha&gt;='2019-01-01' and i2.fecha&lt;='2020-12-01'
+			order by i1.gid 
+			</select>
+			<col type='cod'>1</col>
+			<col type='xutm'>4</col>
+			<col type='yutm'>5</col>
+			<title>
+				<text>Evolución piezométrica en el sondeo {}</text>
+				<col>1</col>
+			</title>
+			<title>
+				<text>Acuífero Campo de Cartagena ({})</text>
+				<col>2</col>
+			</title>
+			<file>
+				<name>{}_{}</name>
+				<col>2</col>
+				<col>1</col>
+			</file>
+		</master>
+		<upper_ts>
+			<select>
+			select i2.fecha, i1.z-i2.pnp cnp 
+			from ipasr.ipa1_aquif i1
+				join ipasr.ipa2_aquif i2 using(gid)
+			where i2.gid= %s and i2.fecha &gt;= %s and i2.fecha &lt;= %s
+			order by i2.gid, i2.fecha;
+			</select>
+		</upper_ts>
+		<lower_relation>
+			<select>select t1.indicativo from ipasr.ipa2_aquif_open_data t1 where t1.gid = %s;</select>
+		</lower_relation>
+		<lower_ts>
+			<select>
+			select t1.fecha, t1.prec
+			from aemet.day t1
+			where t1.indicativo = %s and t1.fecha &gt;= %s and t1.fecha &lt;= %s and t1.prec > 2 
+			order by t1.indicativo, t1.fecha;            
+			</select>
+		</lower_ts>
+	</project>
+	<project name="CRCC PNP Seguimiento ambiental 2019-2020">
+		<db type="postgres">ipa</db>
+		<graph>
+			<y_axis_name>PNP m</y_axis_name>
+			<y_axis_name>P mm/d</y_axis_name>
+			<axis_type>plot</axis_type>
+			<axis_type>stem</axis_type>
+		</graph>
+		<master>
+			<select>
+			select distinct i1.gid, i1.nomacu , i1.z , st_x(i1.geom) x, st_y(i1.geom) y
+			from ipasr.ipa1_aquif i1
+				join ipasr.ipa2_aquif i2 using(gid)
+			where i2.fecha&gt;='2019-01-01' and i2.fecha&lt;='2020-12-01'
+			order by i1.gid 
+			</select>
+			<col type='cod'>1</col>
+			<col type='xutm'>4</col>
+			<col type='yutm'>5</col>
+			<title>
+				<text>Evolución piezométrica en el sondeo {}</text>
+				<col>1</col>
+			</title>
+			<title>
+				<text>Acuífero Campo de Cartagena ({})</text>
+				<col>2</col>
+			</title>
+			<file>
+				<name>{}_{}</name>
+				<col>2</col>
+				<col>1</col>
+			</file>
+		</master>
+		<upper_ts>
+			<select>
+			select i2.fecha, pnp cnp 
+			from ipasr.ipa2_aquif i2
+			where i2.gid= %s and i2.fecha &gt;= %s and i2.fecha &lt;= %s
+			order by i2.gid, i2.fecha;
+			</select>
+		</upper_ts>
+		<lower_relation>
+			<select>select t1.indicativo from ipasr.ipa2_aquif_open_data t1 where t1.gid = %s;</select>
+		</lower_relation>
+		<lower_ts>
+			<select>
+			select t1.fecha, t1.prec
+			from aemet.day t1
+			where t1.indicativo = %s and t1.fecha &gt;= %s and t1.fecha &lt;= %s and t1.prec > 2 
+			order by t1.indicativo, t1.fecha;            
+			</select>
+		</lower_ts>
+	</project>	
+	<project name="BDA CNP red pz + axiliares en rango fechas especificadas en xyts.xml">
+		<!-- 
+		Gráficos de los sondeos de la red pz y los auxiliares medidos en un rango de
+		de fechas que debe especificarse en este fichero en la consulta master/select, no en la
+		interfaz de usuario. La selección de los sondeos se hace considerando el proyecto de las
+		medidas y las fechas de medida (no intervienen los sondeos asignados a la red. Si en el
+		rango de fechas un sondeo de la red no se ha medido no se hace su gráfico
+		-->
+		<db type="postgres">bdaserver</db>
+		<graph>
+			<y_axis_name>CNP m s.n.m.</y_axis_name>
+			<y_axis_name>P dmm/d</y_axis_name>
+			<axis_type>plot</axis_type>
+			<axis_type>stem</axis_type>
+		</graph>
+		<master>
+			<select>
+			with s1 as (
+			select distinct i2.c_hoja, i2.c_oct, i2.c_toma
+			from public.ipa2 i2
+			where i2.cod_proyecto = '42174c02' 
+				and i2.fecha &gt; '2020-10-01'
+			order by i2.c_hoja, i2.c_oct, i2.c_toma
+			),
+			s2 as (
+			select i1.c_hoja, i1.c_oct, i1.c_toma, a.nom_acu 
+			from ipa1 i1
+				join public.acu a using(c_acu)
+				join s1 using (c_hoja, c_oct, c_toma)
+			order by i1.c_hoja, i1.c_oct, i1.c_toma
+			)
+			select concat(t.c_hoja, t.c_oct, t.c_toma) cod, t.nombre ,
+				st_x(t.geom), st_y(t.geom), s2.nom_acu
+			from public.toma t
+				join s2 using (c_hoja, c_oct, c_toma)
+			where t.tipo='B'
+			order by s2.nom_acu, concat(t.c_hoja, t.c_oct, t.c_toma)
+			</select>
+			<col type='cod'>1</col>
+			<col type='xutm'>3</col>
+			<col type='yutm'>4</col>
+			<title>
+				<text>Evolución piezométrica en el sondeo {} ({})</text>
+				<col>1</col>
+				<col>2</col>
+			</title>
+			<title>
+				<text>Acuífero {}</text>
+				<col>5</col>
+			</title>
+			<file>
+				<name>{}_{}</name>
+				<col>5</col>
+				<col>1</col>
+			</file>
+		</master>
+		<upper_ts>
+			<select>
+			select i2.fecha, t.z-i2.pnp cnp
+			from public.toma t
+				join public.ipa2 i2 using (c_hoja, c_oct, c_toma)
+			where t.tipo='B' and concat(t.c_hoja, t.c_oct, t.c_toma)=%s 
+				and i2.fecha &gt; %s and i2.fecha &lt; %s
+			order by i2.fecha
+			</select>
+		</upper_ts>
+		<upper_relation>
+			<select>
+			select concat(t.c_hoja2 , t.c_oct2 , t.c_toma2) "fid2"
+			from public.ipa1_self t
+			where concat(t.c_hoja , t.c_oct , t.c_toma) = %s
+			order by t.c_hoja2 , t.c_oct2 , t.c_toma2
+            </select>
+			<select_location>
+			select st_x(t.geom) x, st_y(t.geom) y 
+			from public.toma t
+			where concat(t.c_hoja , t.c_oct , t.c_toma) = %s
+			</select_location>
+		</upper_relation>
+		<lower_relation>
+			<select>
+			select c.c_clima
+			from cli_toma c
+			where c.tipo='B' and concat(c.c_hoja , c.c_oct , c.c_toma) = %s
+			</select>
+		</lower_relation>
+		<lower_ts>
+			<select>
+			select t.fh_medida, t.precip 
+			from cl_precip_diaria t 
+			where t.c_clima = %s and t.precip>1 and 
+				t.fh_medida &gt; %s and t.fh_medida &lt; %s
+			order by t.fh_medida
+            </select>
+		</lower_ts>
+	</project>
+	<project name="BDA PNP red pz + axiliares en rango fechas especificadas en xyts.xml">
+		<!-- 
+		Gráficos de los sondeos de la red pz y los auxiliares medidos en un rango de
+		de fechas que debe especificarse en este fichero en la consulta master/select, no en la
+		interfaz de usuario. La selección de los sondeos se hace considerando el proyecto de las
+		medidas y las fechas de medida (no intervienen los sondeos asignados a la red. Si en el
+		rango de fechas un sondeo de la red no se ha medido no se hace su gráfico
+		-->
+		<db type="postgres">bdaserver</db>
+		<graph>
+			<y_axis_name>PNP m</y_axis_name>
+			<y_axis_name>P dmm/d</y_axis_name>
+			<axis_type>plot</axis_type>
+			<axis_type>stem</axis_type>
+		</graph>
+		<master>
+			<select>
+			with s1 as (
+			select distinct i2.c_hoja, i2.c_oct, i2.c_toma
+			from public.ipa2 i2
+			where i2.cod_proyecto = '42174c02' 
+				and i2.fecha &gt; '2020-10-01'
+			order by i2.c_hoja, i2.c_oct, i2.c_toma
+			),
+			s2 as (
+			select i1.c_hoja, i1.c_oct, i1.c_toma, a.nom_acu 
+			from ipa1 i1
+				join public.acu a using(c_acu)
+				join s1 using (c_hoja, c_oct, c_toma)
+			order by i1.c_hoja, i1.c_oct, i1.c_toma
+			)
+			select concat(t.c_hoja, t.c_oct, t.c_toma) cod, t.nombre ,
+				st_x(t.geom), st_y(t.geom), s2.nom_acu
+			from public.toma t
+				join s2 using (c_hoja, c_oct, c_toma)
+			where t.tipo='B'
+			order by s2.nom_acu, concat(t.c_hoja, t.c_oct, t.c_toma)
+			</select>
+			<col type='cod'>1</col>
+			<col type='xutm'>3</col>
+			<col type='yutm'>4</col>
+			<title>
+				<text>Evolución piezométrica en el sondeo {} ({})</text>
+				<col>1</col>
+				<col>2</col>
+			</title>
+			<title>
+				<text>Acuífero {}</text>
+				<col>5</col>
+			</title>
+			<file>
+				<name>{}_{}</name>
+				<col>5</col>
+				<col>1</col>
+			</file>
+		</master>
+		<upper_ts>
+			<select>
+			select i2.fecha, i2.pnp
+			from public.toma t
+				join public.ipa2 i2 using (c_hoja, c_oct, c_toma)
+			where t.tipo='B' and concat(t.c_hoja, t.c_oct, t.c_toma)=%s 
+				and i2.fecha &gt; %s and i2.fecha &lt; %s
+			order by i2.fecha
+			</select>
+		</upper_ts>
+		<upper_relation>
+			<select>
+			select concat(t.c_hoja2 , t.c_oct2 , t.c_toma2) "fid2"
+			from public.ipa1_self t
+			where concat(t.c_hoja , t.c_oct , t.c_toma) = %s
+			order by t.c_hoja2 , t.c_oct2 , t.c_toma2
+            </select>
+			<select_location>
+			select st_x(t.geom) x, st_y(t.geom) y 
+			from public.toma t
+			where concat(t.c_hoja , t.c_oct , t.c_toma) = %s
+			</select_location>
+		</upper_relation>
+		<lower_relation>
+			<select>
+			select c.c_clima
+			from cli_toma c
+			where c.tipo='B' and concat(c.c_hoja , c.c_oct , c.c_toma) = %s
+			</select>
+		</lower_relation>
+		<lower_ts>
+			<select>
+			select t.fh_medida, t.precip 
+			from cl_precip_diaria t 
+			where t.c_clima = %s and t.precip>1 and 
+				t.fh_medida &gt; %s and t.fh_medida &lt; %s
+			order by t.fh_medida
+            </select>
+		</lower_ts>
+	</project>
+	<project name="BDA CNP red piezométrica activa">
+		<db type="postgres">bdaserver</db>
+		<graph>
+			<y_axis_name>CNP m s.n.m.</y_axis_name>
+			<y_axis_name>P dmm/d</y_axis_name>
+			<axis_type>plot</axis_type>
+			<axis_type>stem</axis_type>
+		</graph>
+		<master>
+			<select>
+			with ipa as (
+			select ipa1.c_hoja, ipa1.c_oct, ipa1.c_toma, ipa1.tipo, ipa1.prof, acu.nom_acu 
+			from ipa1
+				left join acu using(c_acu)
+			),
+			propiet as (
+			select t.c_tit , t.nombre , tt.descripcion 
+			from public.titul t 
+				join public.titul_tipo tt using(tipotitular)
+			order by t.c_tit)
+			select concat(t1.c_hoja, t1.c_oct, t1.c_toma) "id", ipa.nom_acu, tm.descri tm , t1.nombre, 
+				propiet.nombre propietario, propiet.descripcion "tipo propietario", ipa.prof, to_char(t3.fecha_alta, 'dd/mm/yyyy') "fecha alta en la red",
+				st_x(t1.geom) x, st_y(t1.geom) y, t1.z, t1.geom
+			from toma t1
+				join ipa using(c_hoja, c_oct, c_toma, tipo)
+				join toma_redcontrol t3 using(c_hoja, c_oct, c_toma, tipo)
+				join public.tm using(c_tm, c_prov)
+				left join propiet on (t1.tit=propiet.c_tit) 
+			where t1.tipo = 'B' and t3.red = 'P' and t3.fecha_baja is null
+			</select>
+			<col type='cod'>1</col>
+			<col type='xutm'>10</col>
+			<col type='yutm'>11</col>
+			<title>
+				<text>Evolución piezométrica en el sondeo {} ({})</text>
+				<col>1</col>
+				<col>4</col>
+			</title>
+			<title>
+				<text>Acuífero {}</text>
+				<col>2</col>
+			</title>
+			<file>
+				<name>{}_{}</name>
+				<col>2</col>
+				<col>1</col>
+			</file>
+		</master>
+		<upper_ts>
+			<select>
+			select i2.fecha, t.z-i2.pnp cnp
+			from public.toma t
+				join public.ipa2 i2 using (c_hoja, c_oct, c_toma)
+			where t.tipo='B' and concat(t.c_hoja, t.c_oct, t.c_toma)=%s 
+				and i2.fecha &gt; %s and i2.fecha &lt; %s
+			order by i2.fecha
+			</select>
+		</upper_ts>
+		<upper_relation>
+			<select>
+			select concat(t.c_hoja2 , t.c_oct2 , t.c_toma2) "fid2"
+			from public.ipa1_self t
+			where concat(t.c_hoja , t.c_oct , t.c_toma) = %s
+			order by t.c_hoja2 , t.c_oct2 , t.c_toma2
+            </select>
+			<select_location>
+			select st_x(t.geom) x, st_y(t.geom) y 
+			from public.toma t
+			where concat(t.c_hoja , t.c_oct , t.c_toma) = %s
+			</select_location>
+		</upper_relation>
+		<lower_relation>
+			<select>
+			select c.c_clima
+			from cli_toma c
+			where c.tipo='B' and concat(c.c_hoja , c.c_oct , c.c_toma) = %s
+			</select>
+		</lower_relation>
+		<lower_ts>
+			<select>
+			select t.fh_medida, t.precip 
+			from cl_precip_diaria t 
+			where t.c_clima = %s and t.precip>1 and 
+				t.fh_medida &gt; %s and t.fh_medida &lt; %s
+			order by t.fh_medida
+            </select>
+		</lower_ts>
+	</project>
+	<project name="BDA CNP sondeos especificados en xyts.xml">
+		<db type="postgres">bdaserver</db>
+		<!-- 
+		Gráficos de los sondeos cuyos códigos se escriben en la consulta master/select, no en la
+		interfaz de usuario. Puedes utilizar cualquier otra consulta válida que devuelva como
+		mínimo el código del sondeo concatenado concat(t1.c_hoja, t1.c_oct, t1.c_toma) y
+		sus coordenadas x y. Si haces una consulta nueva, tienes que ajustar los contenidos
+		de los elementos col en master/select, master/title y master/file; en estos 2 últimos 
+		elementos puede ser necesario modificar master/title/text y master/file/name; 
+		el número de símbolos {} debe coincidir con el de elementos col
+		-->
+		<graph>
+			<y_axis_name>CNP m s.n.m.</y_axis_name>
+			<y_axis_name>P dmm/d</y_axis_name>
+			<axis_type>plot</axis_type>
+			<axis_type>stem</axis_type>
+		</graph>
+		<master>
+			<select>
+			with ipa as (
+			select ipa1.c_hoja, ipa1.c_oct, ipa1.c_toma, ipa1.tipo, ipa1.prof, acu.nom_acu 
+			from ipa1
+				left join acu using(c_acu)
+			where (ipa1.c_hoja='3032' and ipa1.c_oct='2' and ipa1.c_toma='0068' or
+				ipa1.c_hoja='2932' and ipa1.c_oct='7' and ipa1.c_toma='0026')
+			)
+			select concat(t1.c_hoja, t1.c_oct, t1.c_toma) "id", ipa.nom_acu, t1.nombre,
+				tm.descri tm,
+				ipa.prof,
+				st_x(t1.geom) x, st_y(t1.geom) y, t1.z, t1.geom
+			from toma t1
+				join ipa using(c_hoja, c_oct, c_toma, tipo)
+				left join public.tm tm using(c_tm, c_prov)
+			where t1.tipo = 'B'
+			</select>
+			<col type='cod'>1</col>
+			<col type='xutm'>6</col>
+			<col type='yutm'>7</col>
+			<title>
+				<text>Evolución piezométrica en el sondeo {} ({})</text>
+				<col>1</col>
+				<col>3</col>
+			</title>
+			<title>
+				<text>Acuífero {}</text>
+				<col>2</col>
+			</title>
+			<file>
+				<name>{}_{}</name>
+				<col>2</col>
+				<col>1</col>
+			</file>
+		</master>
+		<upper_ts>
+			<select>
+			select i2.fecha, t.z-i2.pnp cnp
+			from public.toma t
+				join public.ipa2 i2 using (c_hoja, c_oct, c_toma)
+			where t.tipo='B' and concat(t.c_hoja, t.c_oct, t.c_toma)=%s 
+				and i2.fecha &gt; %s and i2.fecha &lt; %s
+			order by i2.fecha
+			</select>
+		</upper_ts>
+		<upper_relation>
+			<select>
+			select concat(t.c_hoja2 , t.c_oct2 , t.c_toma2) "fid2"
+			from public.ipa1_self t
+			where concat(t.c_hoja , t.c_oct , t.c_toma) = %s
+			order by t.c_hoja2 , t.c_oct2 , t.c_toma2
+            </select>
+			<select_location>
+			select st_x(t.geom) x, st_y(t.geom) y 
+			from public.toma t
+			where concat(t.c_hoja , t.c_oct , t.c_toma) = %s
+			</select_location>
+		</upper_relation>
+		<lower_relation>
+			<select>
+			select c.c_clima
+			from cli_toma c
+			where c.tipo='B' and concat(c.c_hoja , c.c_oct , c.c_toma) = %s
+			</select>
+		</lower_relation>
+		<lower_ts>
+			<select>
+			select t.fh_medida, t.precip 
+			from cl_precip_diaria t 
+			where t.c_clima = %s and t.precip>1 and 
+				t.fh_medida &gt; %s and t.fh_medida &lt; %s
+			order by t.fh_medida
+            </select>
 		</lower_ts>
 	</project>
 </xyts>

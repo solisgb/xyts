@@ -42,6 +42,8 @@ class GUI(tk.Frame):
         self.upper_graph_only = tk.IntVar(value=0)
         # indicador de grabar los datos de cada figura
         self.write_data = tk.IntVar(value=0)
+        # representar tendencia de la serie proncipal
+        self.tendencia = tk.IntVar(value=0)
         # directorio de resultados
         self.path_out = tk.StringVar()
         # indicador del número de figuras grabadas
@@ -191,6 +193,9 @@ class GUI(tk.Frame):
         self.ckb2.pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
         self.ckb3=tk.Checkbutton(frm1, text="Grabar datos",
                                  variable=self.write_data) \
+                                 .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
+        self.ckb4=tk.Checkbutton(frm1, text="Tendencia",
+                                 variable=self.tendencia) \
                                  .pack(side=tk.LEFT, anchor=tk.W, fill=tk.X)
         frm1.pack(side=tk.TOP, anchor=tk.W, expand=tk.NO)
 
@@ -547,7 +552,8 @@ class GUI(tk.Frame):
         except:
             return
         if files:
-            if not tk.messagebox.askyesno('Directorio con ficheros',
+            if not tk.messagebox.askyesno('Cuidado, el directorio tiene ' +\
+                                          'ficheros',
                                           '¿Continuar?'):
                 return
 
@@ -558,7 +564,7 @@ class GUI(tk.Frame):
         d2 = GUI.strdate_sp_2date(self.upper_date.get())
         counter = prj.xygraphs(dst, d1, d2, self.only_master.get(),
                                self.upper_graph_only.get(),
-                               self.write_data.get())
+                               self.write_data.get(), sef.tendencia.get())
         try:
             icontrol = self.stop_from_graph.get()
             for n, m in counter:
