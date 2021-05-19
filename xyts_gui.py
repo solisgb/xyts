@@ -11,8 +11,8 @@ FILE_HISTORY = 'xyts_history.db'
 FILE_PROJECTS = 'xyts.xml'
 FILE_HELP = 'xyts_help.txt'
 LOWER_DATE = '01/01/1900'
-TITLE_WINDOW = 'xyts -xy time series-'
-
+TITLE_WINDOW = 'xy time series'
+'TODO: call function projects_file_get to get a new functionallity'
 
 class GUI(tk.Frame):
     """
@@ -67,6 +67,33 @@ class GUI(tk.Frame):
             logging.append(a, toScreen=False)
             tk.messagebox.showerror('Error', a)
             self.exit_gui()
+
+
+    @staticmethod
+    def projects_file_get(file_name_section: str):
+        """
+        devuelve el nombre de self.fname. Si tienes muchos proyectos
+            te puede interesar tenerlos en ficheros diferentes. Su estructura
+            deber ser la estbalecida cuando se descrive xyts.xml en la
+            documentación
+        args
+            file_name_section : nombre de la section con el nombre del fichero
+            de proyectos
+        """
+        from configparser import ConfigParser
+        FILE_INI = 'pgdb.ini'
+        parser = ConfigParser()
+        parser.read(FILE_INI)
+        fn_params = {}
+        if parser.has_section(file_name_section):
+            params = parser.items(file_name_section)
+            for param in params:
+                fn_params[param[0]] = param[1]
+            return fn_params
+        else:
+            logging.append(f'No se encuentra section {file_name_section} ' +\
+                           f' en {FILE_INI}', False)
+            return 'xyts.xml'
 
 
     def master_geometry(self):
@@ -564,7 +591,7 @@ class GUI(tk.Frame):
         d2 = GUI.strdate_sp_2date(self.upper_date.get())
         counter = prj.xygraphs(dst, d1, d2, self.only_master.get(),
                                self.upper_graph_only.get(),
-                               self.write_data.get(), sef.tendencia.get())
+                               self.write_data.get(), self.tendencia.get())
         try:
             icontrol = self.stop_from_graph.get()
             for n, m in counter:

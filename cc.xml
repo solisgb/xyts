@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="iso-8859-1" standalone="yes"?>
+<!-- Proyectos que utiliza el programa xyts
+    El programa graba figuras xy de series temporales
+	Recuerda que al ser un fichero xml, si las select llevan el signo > debe sustituirse pos &gt;
+	y el signo < por &lt;
+ -->
+<xyts>
+	<project name="CRCC CNP Seguimiento ambiental 2019-2020">
+		<db type="postgres">ipa</db>
+		<graph>
+			<y_axis_name>CNP m s.n.m.</y_axis_name>
+			<y_axis_name>P mm/d</y_axis_name>
+			<axis_type>plot</axis_type>
+			<axis_type>stem</axis_type>
+		</graph>
+		<master>
+			<select>
+			select distinct i1.gid, i1.nomacu , i1.z , st_x(i1.geom) x, st_y(i1.geom) y
+			from ipasr.ipa1_aquif i1
+				join ipasr.ipa2_aquif i2 using(gid)
+			where i2.fecha&gt;='2019-01-01' and i2.fecha&lt;='2020-12-01'
+			order by i1.gid 
+			</select>
+			<col type='cod'>1</col>
+			<col type='xutm'>4</col>
+			<col type='yutm'>5</col>
+			<title>
+				<text>Evolución piezométrica en el sondeo {}</text>
+				<col>1</col>
+			</title>
+			<title>
+				<text>Acuífero Campo de Cartagena ({})</text>
+				<col>2</col>
+			</title>
+			<file>
+				<name>{}_{}</name>
+				<col>2</col>
+				<col>1</col>
+			</file>
+		</master>
+		<upper_ts>
+			<select>
+			select i2.fecha, i1.z-i2.pnp cnp 
+			from ipasr.ipa1_aquif i1
+				join ipasr.ipa2_aquif i2 using(gid)
+			where i2.gid= %s and i2.fecha &gt;= %s and i2.fecha &lt;= %s
+			order by i2.gid, i2.fecha;
+			</select>
+		</upper_ts>
+		<lower_relation>
+			<select>select t1.indicativo from ipasr.ipa2_aquif_open_data t1 where t1.gid = %s;</select>
+		</lower_relation>
+		<lower_ts>
+			<select>
+			select t1.fecha, t1.prec
+			from aemet.day t1
+			where t1.indicativo = %s and t1.fecha &gt;= %s and t1.fecha &lt;= %s and t1.prec > 2 
+			order by t1.indicativo, t1.fecha;            
+			</select>
+		</lower_ts>
+	</project>
+	<project name="CRCC PNP Seguimiento ambiental 2019-2020">
+		<db type="postgres">ipa</db>
+		<graph>
+			<y_axis_name>PNP m</y_axis_name>
+			<y_axis_name>P mm/d</y_axis_name>
+			<axis_type>plot</axis_type>
+			<axis_type>stem</axis_type>
+		</graph>
+		<master>
+			<select>
+			select distinct i1.gid, i1.nomacu , i1.z , st_x(i1.geom) x, st_y(i1.geom) y
+			from ipasr.ipa1_aquif i1
+				join ipasr.ipa2_aquif i2 using(gid)
+			where i2.fecha&gt;='2019-01-01' and i2.fecha&lt;='2020-12-01'
+			order by i1.gid 
+			</select>
+			<col type='cod'>1</col>
+			<col type='xutm'>4</col>
+			<col type='yutm'>5</col>
+			<title>
+				<text>Evolución piezométrica en el sondeo {}</text>
+				<col>1</col>
+			</title>
+			<title>
+				<text>Acuífero Campo de Cartagena ({})</text>
+				<col>2</col>
+			</title>
+			<file>
+				<name>{}_{}</name>
+				<col>2</col>
+				<col>1</col>
+			</file>
+		</master>
+		<upper_ts>
+			<select>
+			select i2.fecha, pnp cnp 
+			from ipasr.ipa2_aquif i2
+			where i2.gid= %s and i2.fecha &gt;= %s and i2.fecha &lt;= %s
+			order by i2.gid, i2.fecha;
+			</select>
+		</upper_ts>
+		<lower_relation>
+			<select>select t1.indicativo from ipasr.ipa2_aquif_open_data t1 where t1.gid = %s;</select>
+		</lower_relation>
+		<lower_ts>
+			<select>
+			select t1.fecha, t1.prec
+			from aemet.day t1
+			where t1.indicativo = %s and t1.fecha &gt;= %s and t1.fecha &lt;= %s and t1.prec > 2 
+			order by t1.indicativo, t1.fecha;            
+			</select>
+		</lower_ts>
+	</project>	
+	<project name="AEMET PPLIVIOMETRÍA medid mensual">
+		<db type="postgres">ipa</db>
+		<graph>
+			<y_axis_name>Prec mm</y_axis_name>
+			<y_axis_name>mes</y_axis_name>
+			<axis_type>plot</axis_type>
+			<axis_type>stem</axis_type>
+		</graph>
+		<master>
+			<select>
+			select distinct t1.gid
+			from aemet.grid5km t1
+				join aemet.grid5data t2 using(gid)
+			order by t1.gid;
+			</select>
+			<col type='cod'>1</col>
+			<title>
+				<text>Precipitación mensual media febrero 1950-sep 2020</text>
+				<col>1</col>
+			</title>
+			<title>
+				<text>Acuífero Campo de Cartagena ({})</text>
+				<col>2</col>
+			</title>
+			<file>
+				<name>{}_{}</name>
+				<col>2</col>
+				<col>1</col>
+			</file>
+		</master>
+		<upper_ts>
+			<select>
+			select i2.fecha, pnp cnp 
+			from ipasr.ipa2_aquif i2
+			where i2.gid= %s and i2.fecha &gt;= %s and i2.fecha &lt;= %s
+			order by i2.gid, i2.fecha;
+			</select>
+		</upper_ts>
+		<lower_relation>
+			<select>select t1.indicativo from ipasr.ipa2_aquif_open_data t1 where t1.gid = %s;</select>
+		</lower_relation>
+		<lower_ts>
+			<select>
+			select t1.fecha, t1.prec
+			from aemet.day t1
+			where t1.indicativo = %s and t1.fecha &gt;= %s and t1.fecha &lt;= %s and t1.prec > 2 
+			order by t1.indicativo, t1.fecha;            
+			</select>
+		</lower_ts>
+	</project>	
+
+</xyts>

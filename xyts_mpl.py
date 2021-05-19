@@ -100,9 +100,10 @@ class Plot_time_series():
                                  'instancias Time_series')
         if ts2:
             Plot_time_series.xy_ts_plot_2g(title, ts1, ylabel1, ts2, ylabel2,
-                                           dst)
+                                           dst, tendencia)
         else:
-            Plot_time_series.xy_ts_plot_1g(title, ts1, ylabel1, dst)
+            Plot_time_series.xy_ts_plot_1g(title, ts1, ylabel1, dst,
+                                           tendencia)
         if write_data:
             Plot_time_series.write_data_2xml(dst, title, ts1, ylabel1,
                                              ts2, ylabel2)
@@ -138,10 +139,10 @@ class Plot_time_series():
 
         fig.autofmt_xdate()
 
-        for ts1 in tsu:
+        for i, ts1 in enumerate(tsu):
             ax.plot(ts1.x, ts1.y, label=ts1.legend)
             if i == 0 and tendencia == 1:
-                drawn_polynomial(ts1, ax1)
+                Plot_time_series.plot_polynomial(ts1, ax)
             ax.legend()
 
         fig.savefig(dst)
@@ -167,9 +168,6 @@ class Plot_time_series():
         """
         import matplotlib.pyplot as plt
         import matplotlib as mpl
-        import matplotlib.dates as mdates
-        from sklearn.linear_model import LinearRegression
-        from sklearn.preprocessing import PolynomialFeatures
 
         # parámetros específicos
         mpl.rc('font', size=8)
@@ -195,7 +193,7 @@ class Plot_time_series():
         for i, ts1 in enumerate(tsu):
             ax1.plot(ts1.x, ts1.y, label=ts1.legend)
             if i == 0 and tendencia == 1:
-                drawn_polynomial(ts1, ax1)
+                Plot_time_series.plot_polynomial(ts1, ax1)
             ax1.legend()
         # subplot inferior (stem)
         for ts1 in tsl:
@@ -211,7 +209,7 @@ class Plot_time_series():
 
 
     @staticmethod
-    def drawn_polynomial(ts1, ax1):
+    def plot_polynomial(ts1, ax1):
         """
         drawns an polynomial for one time series
         arguments
@@ -222,6 +220,10 @@ class Plot_time_series():
         None.
 
         """
+        import matplotlib.dates as mdates
+        from sklearn.linear_model import LinearRegression
+        from sklearn.preprocessing import PolynomialFeatures
+
         xd = mdates.date2num(ts1.x)
         xr = np.array(xd).reshape((-1, 1))
         pdegree = round(len(xd)/2)
