@@ -5,6 +5,7 @@ from math import sqrt
 from tkinter import messagebox
 import xml.etree.ElementTree as ET
 import littleLogging as logging
+from traceback import format_exc
 from xyts_mpl import Time_series
 from xyts_mpl import Plot_time_series as plot_ts
 
@@ -249,7 +250,6 @@ class Project(object):
         tendencia: si 1 graba la tendencia de la serie principal
         """
         from os.path import join
-        from traceback import format_exc
         from db_connection import con_get
 
         not_sqlites_dbtypes = [dbtype for dbtype in dbtypes \
@@ -506,8 +506,13 @@ class Project(object):
         for i, title in enumerate(titles):
             cols = title.findall('col')
             if cols:
-                subs = [row[int(col.text)-1] for col in cols]
-                stitles[i] = stitles[i].format(*subs)
+                try:
+                    subs = [row[int(col.text)-1] for col in cols]
+                    stitles[i] = stitles[i].format(*subs)
+                except Exception:
+                    msg = f'Revise en el fichero xyts.xml las columnas del título\n{format_exc()}'
+                    logging.append(f'Exception\n{msg}')
+                    
         return '\n'.join(stitles)
 
 
